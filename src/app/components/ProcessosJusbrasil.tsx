@@ -51,6 +51,7 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
   const [processos, setProcessos] = useState<Processo[]>([]);
   const [clientes, setClientes] = useState<{ id: number; nome_razao_social: string }[]>([]);
   const [clientesMap, setClientesMap] = useState<Record<number, string>>({});
+  const [loadingClientes, setLoadingClientes] = useState(false);
   
   // Modal State
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
@@ -68,6 +69,7 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
 
   // Fetch data
   const fetchClientes = async () => {
+    setLoadingClientes(true);
     try {
       const res = await fetch("http://localhost:8000/clientes/");
       if (res.ok) {
@@ -82,6 +84,8 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
       }
     } catch (error) {
       console.error("Erro ao buscar clientes:", error);
+    } finally {
+      setLoadingClientes(false);
     }
     return {};
   };
