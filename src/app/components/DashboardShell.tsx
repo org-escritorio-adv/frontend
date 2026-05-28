@@ -6,7 +6,7 @@ import { KanbanBoard } from "./KanbanBoard";
 import { SearchView } from "./SearchView";
 import { InstitutionalCMS } from "./InstitutionalCMS";
 import { CaseDetails } from "./CaseDetails";
-import { ProcessosJusbrasil } from "./ProcessosJusbrasil";
+import { Processos } from "./Processos";
 import { SettingsView } from "./SettingsView";
 import { TeamManagement } from "./TeamManagement";
 
@@ -18,7 +18,7 @@ export function DashboardShell() {
   /* State for notification → kanban expand */
   const [pendingExpandId, setPendingExpandId] = useState<string | null>(null);
 
-  /* State for Jusbrasil: null = list, string = detail of that process id */
+  /* State for DataJud: null = list, string = detail of that process id */
   const [selectedProcessoId, setSelectedProcessoId] = useState<string | null>(null);
 
   /** Called when user clicks a notification in TopBar */
@@ -50,7 +50,7 @@ export function DashboardShell() {
           );
         }
         return (
-          <ProcessosJusbrasil
+          <Processos
             onViewProcess={(id) => setSelectedProcessoId(id)}
           />
         );

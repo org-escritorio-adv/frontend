@@ -10,7 +10,7 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
   const menuItems = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard',               short: 'Início'    },
     { id: 'processos', icon: Columns3,        label: 'Casos (Demandas)',         short: 'Casos'     },
-    { id: 'cases',     icon: Briefcase,       label: 'Processos (Jusbrasil)',    short: 'Proc.'     },
+    { id: 'cases',     icon: Briefcase,       label: 'Processos (DataJud)',    short: 'Proc.'     },
     { id: 'search',    icon: Search,          label: 'Pesquisa',                 short: 'Pesquisa'  },
     { id: 'cms',       icon: Building2,       label: 'CMS',                      short: 'CMS'       },
     { id: 'team',      icon: Users,           label: 'Equipe & Permissões',      short: 'Equipe'    },

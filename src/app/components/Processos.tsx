@@ -33,11 +33,11 @@ const statusConfig: Record<StatusProcesso, { label: string; dot: string; badge: 
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-interface ProcessosJusbrasilProps {
+interface Processos {
   onViewProcess: (id: string) => void;
 }
 
-export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
+export function Processos({ onViewProcess }: Processos) {
   const [query, setQuery] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
@@ -179,7 +179,7 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
           <div>
             <h2 className="text-[#1A2B3C] text-xl font-semibold">Processos Judiciais</h2>
             <p className="text-slate-500 text-sm mt-0.5">
-              Integração Jusbrasil · {processos.length} processos vinculados
+              Integração DataJud · {processos.length} processos vinculados
             </p>
           </div>
 
@@ -190,7 +190,7 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
               className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-600 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all disabled:opacity-60"
             >
               <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin text-[#D4AF37]" : ""}`} />
-              {syncing ? "Sincronizando…" : "Sincronizar Jusbrasil"}
+              {syncing ? "Sincronizando…" : "Sincronizar DataJud"}
             </button>
 
             <button
