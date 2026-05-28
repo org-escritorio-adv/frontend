@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import {
-  Search, RefreshCw, Plus, Eye, ChevronRight,
+  Search, RefreshCw, Plus, Eye,
   Scale, Calendar, FileText, AlertCircle, Archive,
-  Hash, Building2, Clock, ArrowUpRight, Filter,
+  Hash, Building2, Clock, ArrowUpRight,
 } from "lucide-react";
 import {
   Dialog,
@@ -11,23 +11,18 @@ import {
   DialogTitle,
   DialogFooter,
 } from "./ui/dialog";
+import {
+  buscarClientes,
+  buscarProcessos,
+  criarProcesso,
+  type Processo,
+  type ClienteAPI,
+  type CriarProcessoPayload,
+} from "../../services/processos.service";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type StatusProcesso = "Ativo" | "Arquivado" | "Em Recurso" | "Suspenso";
-
-interface Processo {
-  id: string;
-  cnj: string;
-  cliente: string;
-  parteContraria: string;
-  tribunal: string;
-  vara: string;
-  ultimaMovimentacao: { data: string; descricao: string };
-  status: StatusProcesso;
-  valorCausa: string;
-  casoVinculado: string;
-}
 
 const statusConfig: Record<StatusProcesso, { label: string; dot: string; badge: string }> = {
   "Ativo":      { label: "Ativo",       dot: "bg-emerald-500", badge: "bg-emerald-100 text-emerald-700" },
@@ -49,10 +44,10 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
 
   // API State
   const [processos, setProcessos] = useState<Processo[]>([]);
-  const [clientes, setClientes] = useState<{ id: number; nome_razao_social: string }[]>([]);
+  const [clientes, setClientes] = useState<ClienteAPI[]>([]);
   const [clientesMap, setClientesMap] = useState<Record<number, string>>({});
   const [loadingClientes, setLoadingClientes] = useState(false);
-  
+
   // Modal State
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -67,54 +62,28 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
     cliente_id: "",
   });
 
-  // Fetch data
   const fetchClientes = async () => {
     setLoadingClientes(true);
     try {
-      const res = await fetch("http://localhost:8000/clientes/");
-      if (res.ok) {
-        const data = await res.json();
-        setClientes(data);
-        const map: Record<number, string> = {};
-        data.forEach((c: any) => {
-          map[c.id] = c.nome_razao_social;
-        });
-        setClientesMap(map);
-        return map;
-      }
+      const data = await buscarClientes();
+      setClientes(data);
+      const map: Record<number, string> = {};
+      data.forEach((c) => { map[c.id] = c.nome_razao_social; });
+      setClientesMap(map);
+      return map;
     } catch (error) {
       console.error("Erro ao buscar clientes:", error);
+      return {};
     } finally {
       setLoadingClientes(false);
     }
-    return {};
   };
 
   const fetchProcessos = async (currClientesMap?: Record<number, string>) => {
-    const activeMap = currClientesMap || clientesMap;
+    const activeMap = currClientesMap ?? clientesMap;
     try {
-      const res = await fetch("http://localhost:8000/processos/");
-      if (res.ok) {
-        const data = await res.json();
-        const mapped = data.map((p: any) => ({
-          id: String(p.id),
-          cnj: p.numero_cnj,
-          cliente: p.cliente_id ? (activeMap[p.cliente_id] || `Cliente #${p.cliente_id}`) : "Sem Cliente",
-          parteContraria: p.partes || "Não informada",
-          tribunal: p.tribunal,
-          vara: "Vara Única",
-          ultimaMovimentacao: p.movimentacoes && p.movimentacoes.length > 0 
-            ? { 
-                data: new Date(p.movimentacoes[0].data).toLocaleDateString("pt-BR"), 
-                descricao: p.movimentacoes[0].descricao 
-              } 
-            : { data: "-", descricao: "Sem movimentações" },
-          status: p.status === "ativo" ? "Ativo" : (p.status === "arquivado" ? "Arquivado" : "Ativo"),
-          valorCausa: "R$ 0,00",
-          casoVinculado: "-",
-        }));
-        setProcessos(mapped);
-      }
+      const mapped = await buscarProcessos(activeMap);
+      setProcessos(mapped);
     } catch (error) {
       console.error("Erro ao buscar processos:", error);
     }
@@ -131,25 +100,13 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
 
   useEffect(() => {
     if (isManualModalOpen) {
-      fetchClientes();
-      setManualForm({
-        numero_cnj: "",
-        tribunal: "",
-        partes: "",
-        data_abertura: "",
-        status: "ativo",
-        cliente_id: "",
-      });
+      setManualForm({ numero_cnj: "", tribunal: "", partes: "", data_abertura: "", status: "ativo", cliente_id: "" });
       setErrorMsg("");
       setSuccessMsg("");
     }
   }, [isManualModalOpen]);
 
-  // CNJ Validation (checks for exactly 20 digits)
-  const validarCNJ = (cnj: string) => {
-    const clean = cnj.replace(/\D/g, "");
-    return clean.length === 20;
-  };
+  const validarCNJ = (cnj: string) => cnj.replace(/\D/g, "").length === 20;
 
   const handleCreateManual = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -168,7 +125,7 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
 
     setSubmitting(true);
     try {
-      const payload = {
+      const payload: CriarProcessoPayload = {
         numero_cnj: manualForm.numero_cnj,
         tribunal: manualForm.tribunal,
         partes: manualForm.partes,
@@ -179,26 +136,13 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
         advogado_id: null,
       };
 
-      const res = await fetch("http://localhost:8000/processos/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        setSuccessMsg("Processo cadastrado com sucesso!");
-        loadData();
-        setTimeout(() => {
-          setIsManualModalOpen(false);
-        }, 1200);
-      } else {
-        const err = await res.json();
-        setErrorMsg(err.detail || "Erro ao cadastrar processo.");
-      }
-    } catch (error) {
-      setErrorMsg("Erro de conexão com o servidor.");
+      await criarProcesso(payload);
+      setSuccessMsg("Processo cadastrado com sucesso!");
+      loadData();
+      setTimeout(() => setIsManualModalOpen(false), 1200);
+    } catch (error: any) {
+      const msg = error?.response?.data?.detail;
+      setErrorMsg(msg || "Erro ao cadastrar processo.");
       console.error(error);
     } finally {
       setSubmitting(false);
@@ -210,7 +154,6 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
   const totalArquivados = processos.filter((p) => p.status === "Arquivado").length;
   const totalRecurso = processos.filter((p) => p.status === "Em Recurso").length;
 
-  // ── Search filter ──────────────────────────────────────────────────────────
   const filtered = processos.filter((p) => {
     const q = query.toLowerCase();
     return (
@@ -221,7 +164,6 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
     );
   });
 
-  // ── Sync animation ─────────────────────────────────────────────────────────
   const handleSync = () => {
     if (syncing) return;
     setSyncing(true);
@@ -234,8 +176,6 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
       {/* ── Top bar ──────────────────────────────────────────────────────────── */}
       <div className="bg-white border-b border-gray-100 px-8 py-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-
-          {/* Title */}
           <div>
             <h2 className="text-[#1A2B3C] text-xl font-semibold">Processos Judiciais</h2>
             <p className="text-slate-500 text-sm mt-0.5">
@@ -243,7 +183,6 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
             </p>
           </div>
 
-          {/* Action buttons */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
               onClick={handleSync}
@@ -264,7 +203,6 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
           </div>
         </div>
 
-        {/* ── Search bar ───────────────────────────────────────────────────── */}
         <div className="relative mt-4">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
           <input
@@ -288,10 +226,10 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
       {/* ── Stats chips ──────────────────────────────────────────────────────── */}
       <div className="px-8 py-3 flex items-center gap-3 border-b border-gray-100 bg-white/70">
         {[
-          { label: "Total",       value: processos.length, icon: Scale,   color: "text-[#1A2B3C]", bg: "bg-slate-100" },
-          { label: "Ativos",      value: totalAtivos,          icon: FileText, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "Arquivados",  value: totalArquivados,      icon: Archive,  color: "text-slate-500",  bg: "bg-slate-100" },
-          { label: "Em Recurso",  value: totalRecurso,         icon: AlertCircle, color: "text-amber-600", bg: "bg-amber-50" },
+          { label: "Total",      value: processos.length, icon: Scale,        color: "text-[#1A2B3C]",    bg: "bg-slate-100"  },
+          { label: "Ativos",     value: totalAtivos,      icon: FileText,     color: "text-emerald-600",  bg: "bg-emerald-50" },
+          { label: "Arquivados", value: totalArquivados,  icon: Archive,      color: "text-slate-500",    bg: "bg-slate-100"  },
+          { label: "Em Recurso", value: totalRecurso,     icon: AlertCircle,  color: "text-amber-600",    bg: "bg-amber-50"   },
         ].map((chip) => {
           const Icon = chip.icon;
           return (
@@ -313,15 +251,14 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
       <div className="flex-1 overflow-auto px-8 py-6">
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
 
-          {/* Table header */}
           <div className="grid grid-cols-[minmax(200px,1fr)_minmax(180px,1.2fr)_minmax(160px,1fr)_minmax(200px,1.2fr)_100px_120px] px-5 py-3 bg-slate-50 border-b border-gray-100">
             {[
-              { label: "Número CNJ",           icon: Hash        },
-              { label: "Cliente / Parte",       icon: Scale       },
-              { label: "Tribunal",              icon: Building2   },
-              { label: "Última Movimentação",   icon: Calendar    },
-              { label: "Status",                icon: null        },
-              { label: "",                      icon: null        },
+              { label: "Número CNJ",          icon: Hash      },
+              { label: "Cliente / Parte",      icon: Scale     },
+              { label: "Tribunal",             icon: Building2 },
+              { label: "Última Movimentação",  icon: Calendar  },
+              { label: "Status",               icon: null      },
+              { label: "",                     icon: null      },
             ].map((col, i) => (
               <div key={i} className="flex items-center gap-1.5">
                 {col.icon && <col.icon className="w-3 h-3 text-slate-400" />}
@@ -332,7 +269,6 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
             ))}
           </div>
 
-          {/* Rows */}
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <Search className="w-10 h-10 text-slate-300" />
@@ -345,7 +281,7 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
             </div>
           ) : (
             filtered.map((proc, index) => {
-              const cfg = statusConfig[proc.status] || statusConfig["Ativo"];
+              const cfg = statusConfig[proc.status] ?? statusConfig["Ativo"];
               const isFirst = index === 0;
               const isHovered = hoveredRow === proc.id;
 
@@ -362,12 +298,10 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
                     ${isHovered ? "bg-slate-50/80" : "bg-white"}
                   `}
                 >
-                  {/* Hover left accent */}
                   {isHovered && (
                     <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[#D4AF37] rounded-r-full" />
                   )}
 
-                  {/* Número CNJ */}
                   <div className="flex flex-col justify-center min-w-0">
                     <span className="font-mono text-[13px] text-[#1A2B3C] font-medium tracking-tight truncate">
                       {proc.cnj}
@@ -380,27 +314,21 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
                     )}
                   </div>
 
-                  {/* Cliente / Parte */}
                   <div className="flex flex-col justify-center min-w-0 pr-2">
                     <span className="text-sm font-semibold text-[#1A2B3C] truncate">{proc.cliente}</span>
                     <span className="text-xs text-slate-400 truncate mt-0.5">× {proc.parteContraria}</span>
                   </div>
 
-                  {/* Tribunal */}
                   <div className="flex flex-col justify-center min-w-0 pr-2">
                     <span className="text-sm font-semibold text-[#1A2B3C]">{proc.tribunal}</span>
                     <span className="text-xs text-slate-400 truncate mt-0.5">{proc.vara}</span>
                   </div>
 
-                  {/* Última Movimentação */}
                   <div className="flex flex-col justify-center min-w-0 pr-2">
                     <span className="text-xs font-medium text-slate-600">{proc.ultimaMovimentacao.data}</span>
-                    <span className="text-xs text-slate-400 truncate mt-0.5">
-                      {proc.ultimaMovimentacao.descricao}
-                    </span>
+                    <span className="text-xs text-slate-400 truncate mt-0.5">{proc.ultimaMovimentacao.descricao}</span>
                   </div>
 
-                  {/* Status */}
                   <div className="flex items-center">
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${cfg.badge}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot} ${proc.status === "Ativo" ? "animate-pulse" : ""}`} />
@@ -408,18 +336,13 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
                     </span>
                   </div>
 
-                  {/* Ver Detalhes */}
                   <div className="flex items-center justify-end">
                     <button
                       onClick={(e) => { e.stopPropagation(); onViewProcess(proc.id); }}
                       className={`
                         flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all
-                        ${isHovered
-                          ? "bg-[#1A2B3C] text-white shadow-sm"
-                          : "text-slate-400 hover:text-[#1A2B3C]"
-                        }
+                        ${isHovered ? "bg-[#1A2B3C] text-white shadow-sm" : "text-slate-400 hover:text-[#1A2B3C]"}
                       `}
-                      title="Ver Detalhes do Processo"
                     >
                       <Eye className="w-3.5 h-3.5" />
                       {isHovered ? "Abrir" : "Detalhes"}
@@ -431,7 +354,6 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
           )}
         </div>
 
-        {/* Footer info */}
         <div className="flex items-center justify-between mt-4 px-1">
           <p className="text-xs text-slate-400">
             Exibindo {filtered.length} de {processos.length} processos
@@ -456,8 +378,6 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
           </DialogHeader>
 
           <form onSubmit={handleCreateManual} className="space-y-4 mt-2">
-            
-            {/* Número CNJ */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Número CNJ (20 dígitos) *
@@ -472,12 +392,9 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
               />
             </div>
 
-            {/* Tribunal & Status */}
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  Tribunal *
-                </label>
+                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Tribunal *</label>
                 <select
                   required
                   value={manualForm.tribunal}
@@ -496,9 +413,7 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  Status *
-                </label>
+                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Status *</label>
                 <select
                   value={manualForm.status}
                   onChange={(e) => setManualForm({ ...manualForm, status: e.target.value })}
@@ -510,7 +425,6 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
               </div>
             </div>
 
-            {/* Partes */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Partes (Autor vs. Réu) *
@@ -525,12 +439,9 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
               />
             </div>
 
-            {/* Data de Início & Cliente */}
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  Data de Início *
-                </label>
+                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Data de Início *</label>
                 <input
                   type="date"
                   required
@@ -541,9 +452,7 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  Cliente Vinculado
-                </label>
+                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Cliente Vinculado</label>
                 <select
                   value={manualForm.cliente_id}
                   onChange={(e) => setManualForm({ ...manualForm, cliente_id: e.target.value })}
@@ -552,15 +461,12 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
                 >
                   <option value="">Nenhum</option>
                   {clientes.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nome_razao_social}
-                    </option>
+                    <option key={c.id} value={c.id}>{c.nome_razao_social}</option>
                   ))}
                 </select>
               </div>
             </div>
 
-            {/* Feedback Messages */}
             {errorMsg && (
               <div className="text-xs text-red-500 font-medium bg-red-50 border border-red-100 rounded-lg p-2.5">
                 {errorMsg}
@@ -572,7 +478,6 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
               </div>
             )}
 
-            {/* Actions */}
             <DialogFooter className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
               <button
                 type="button"
@@ -590,7 +495,6 @@ export function ProcessosJusbrasil({ onViewProcess }: ProcessosJusbrasilProps) {
                 {submitting ? "Cadastrando..." : "Cadastrar"}
               </button>
             </DialogFooter>
-
           </form>
         </DialogContent>
       </Dialog>
