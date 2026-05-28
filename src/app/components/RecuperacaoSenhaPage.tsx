@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { CheckCircle } from "lucide-react";
-import imgLogin from "figma:asset/c94d0251b0fd23670e2fa6c6fa526ecff71beb6f.png";
+import imgLogin from "../../imports/logo.png";
 
 export function RecuperacaoSenhaPage() {
   const [email, setEmail] = useState("");

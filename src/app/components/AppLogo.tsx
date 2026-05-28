@@ -1,4 +1,4 @@
-import logoImg from "../../imports/image-2.png";
+import logoImg from "../../imports/logo.png";
 
 interface AppLogoProps {
   /**

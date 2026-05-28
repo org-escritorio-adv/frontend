@@ -1,7 +1,7 @@
 import svgPaths from "./svg-42nyri7qfj";
 import imgWhatsAppImage20260410At1541151 from "./a7e6d94e594d35091b59bec3936bae889629478e.png";
 import imgWhatsAppImage20260410At1545221 from "./06f1466dcaf261268bcf5b48e2f367be33965c0f.png";
-import imgLogo1 from "./c94d0251b0fd23670e2fa6c6fa526ecff71beb6f.png";
+import imgLogo1 from "../../imports/logo.png";
 
 function Container1() {
   return <div className="absolute bg-[#c5a059] blur-[64px] left-[1087px] opacity-5 rounded-[3.402820018375656e+38px] size-[384px] top-[80px]" data-name="Container" />;

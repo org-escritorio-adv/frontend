@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import imgLawyer1 from "figma:asset/a7e6d94e594d35091b59bec3936bae889629478e.png";
 import imgLawyer2 from "figma:asset/06f1466dcaf261268bcf5b48e2f367be33965c0f.png";
-import imgLogo from "figma:asset/c94d0251b0fd23670e2fa6c6fa526ecff71beb6f.png";
+import imgLogo from "../../imports/logo.png";
 
 // ─── Shared style helpers ────────────────────────────────────────────────────
 const montserrat = { fontFamily: "'Montserrat', sans-serif" } as React.CSSProperties;
