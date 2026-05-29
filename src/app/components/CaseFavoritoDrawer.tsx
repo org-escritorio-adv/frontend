@@ -5,16 +5,20 @@ import {
   Clock, ChevronRight, Star, ExternalLink,
 } from 'lucide-react';
 
+
 // ─── Types ────────────────────────────────────────────────────────────────────
+
 
 export type StatusCaso = 'ativo' | 'pendente' | 'concluído';
 export type TipoMovimentacao = 'decisao' | 'peticao' | 'audiencia' | 'prazo' | 'documento';
+
 
 export interface Movimentacao {
   data: string;
   descricao: string;
   tipo: TipoMovimentacao;
 }
+
 
 export interface CasoDetalhado {
   id: string;
@@ -28,19 +32,26 @@ export interface CasoDetalhado {
   movimentacoes: Movimentacao[];
 }
 
+
 interface CaseFavoritoDrawerProps {
   caso: CasoDetalhado | null;
   isOpen: boolean;
   onClose: () => void;
+  onVerProcessoCompleto?: (id: string) => void;
+  onVerTodasMovimentacoes?: (id: string) => void;
+  onExportarPDF?: (id: string) => void;
 }
+
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+
 const statusConfig: Record<StatusCaso, { dot: string; badge: string; label: string }> = {
-  ativo:     { dot: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-700 border-emerald-200', label: 'Ativo'     },
-  pendente:  { dot: 'bg-amber-500',   badge: 'bg-amber-100   text-amber-700   border-amber-200',   label: 'Pendente'  },
-  concluído: { dot: 'bg-slate-400',   badge: 'bg-slate-100   text-slate-600   border-slate-200',   label: 'Concluído' },
+  ativo:      { dot: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-700 border-emerald-200', label: 'Ativo'     },
+  pendente:   { dot: 'bg-amber-500',   badge: 'bg-amber-100   text-amber-700   border-amber-200',   label: 'Pendente'  },
+  concluído:  { dot: 'bg-slate-400',   badge: 'bg-slate-100   text-slate-600   border-slate-200',   label: 'Concluído' },
 };
+
 
 const movIcon: Record<TipoMovimentacao, { icon: typeof Scale; color: string; bg: string }> = {
   decisao:  { icon: Scale,         color: 'text-blue-500',   bg: 'bg-blue-50'   },
@@ -50,9 +61,19 @@ const movIcon: Record<TipoMovimentacao, { icon: typeof Scale; color: string; bg:
   documento:{ icon: FileText,      color: 'text-green-500',  bg: 'bg-green-50'  },
 };
 
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function CaseFavoritoDrawer({ caso, isOpen, onClose }: CaseFavoritoDrawerProps) {
+
+export function CaseFavoritoDrawer({ 
+  caso, 
+  isOpen, 
+  onClose,
+  onVerProcessoCompleto,
+  onVerTodasMovimentacoes,
+  onExportarPDF
+}: CaseFavoritoDrawerProps) {
+
 
   /* Fechar com ESC */
   useEffect(() => {
@@ -61,15 +82,52 @@ export function CaseFavoritoDrawer({ caso, isOpen, onClose }: CaseFavoritoDrawer
     return () => document.removeEventListener('keydown', handler);
   }, [isOpen, onClose]);
 
+
   /* Travar scroll do body enquanto aberto */
   useEffect(() => {
     document.body.style.overflow = isOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
-  if (!caso) return null;
+
+  if (!isOpen || !caso) return null;
+
 
   const statusCfg = statusConfig[caso.status];
+
+
+  // Handlers com fallback seguro
+  const handleVerProcessoCompleto = () => {
+    if (onVerProcessoCompleto) {
+      onVerProcessoCompleto(caso.id);
+    } else {
+      console.log('Ver processo completo:', caso.id);
+      // TODO: Implementar navegação para página de detalhes
+    }
+  };
+
+
+  const handleVerTodasMovimentacoes = () => {
+    if (onVerTodasMovimentacoes) {
+      onVerTodasMovimentacoes(caso.id);
+    } else {
+      console.log('Ver todas movimentações:', caso.id);
+      // TODO: Implementar modal de timeline completa
+      alert(`Total de ${caso.movimentacoes.length} movimentações\n\n${caso.movimentacoes.map((m, i) => `${i + 1}. ${m.data} - ${m.descricao}`).join('\n')}`);
+    }
+  };
+
+
+  const handleExportarPDF = () => {
+    if (onExportarPDF) {
+      onExportarPDF(caso.id);
+    } else {
+      console.log('Exportar PDF:', caso.id);
+      // TODO: Implementar exportação real com jsPDF ou similar
+      alert(`Exportando PDF do caso ${caso.id}\nCliente: ${caso.cliente}\nValor: ${caso.valorCausa}`);
+    }
+  };
+
 
   return (
     <>
@@ -86,7 +144,8 @@ export function CaseFavoritoDrawer({ caso, isOpen, onClose }: CaseFavoritoDrawer
         aria-hidden="true"
       />
 
-      {/* ── Side Drawer ──────────────────────────────────────────────────────── */}
+
+      {/* ── Side Drawer ─────────────────────────────────────────────────────── */}
       <aside
         aria-label="Detalhes do Caso Favorito"
         className={`
@@ -100,9 +159,11 @@ export function CaseFavoritoDrawer({ caso, isOpen, onClose }: CaseFavoritoDrawer
         style={{ boxShadow: '-8px 0 40px rgba(26,43,60,0.18), -2px 0 12px rgba(26,43,60,0.08)' }}
       >
 
+
         {/* ── Cabeçalho ────────────────────────────────────────────────────── */}
         <div className="flex items-start justify-between px-6 pt-6 pb-5 border-b border-gray-100">
           <div className="flex-1 min-w-0 pr-3">
+
 
             {/* Label superior */}
             <div className="flex items-center gap-1.5 mb-2">
@@ -112,10 +173,12 @@ export function CaseFavoritoDrawer({ caso, isOpen, onClose }: CaseFavoritoDrawer
               </span>
             </div>
 
+
             {/* Nome do Cliente */}
             <h3 className="text-[#1A2B3C] text-lg font-semibold leading-snug truncate">
               {caso.cliente}
             </h3>
+
 
             {/* Badge de status */}
             <div className="mt-2">
@@ -125,6 +188,7 @@ export function CaseFavoritoDrawer({ caso, isOpen, onClose }: CaseFavoritoDrawer
               </span>
             </div>
           </div>
+
 
           {/* Botão fechar */}
           <button
@@ -136,14 +200,17 @@ export function CaseFavoritoDrawer({ caso, isOpen, onClose }: CaseFavoritoDrawer
           </button>
         </div>
 
+
         {/* ── Corpo com scroll ─────────────────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto">
+
 
           {/* ── Informações do Processo ─────────────────────────────────────── */}
           <div className="px-6 py-5 space-y-4">
             <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
               Dados do Processo
             </p>
+
 
             {/* Número CNJ */}
             <div className="flex items-start gap-3">
@@ -155,6 +222,7 @@ export function CaseFavoritoDrawer({ caso, isOpen, onClose }: CaseFavoritoDrawer
                 <p className="text-sm font-mono text-[#1A2B3C] font-medium">{caso.id}</p>
               </div>
             </div>
+
 
             {/* Tribunal */}
             <div className="flex items-start gap-3">
@@ -168,6 +236,7 @@ export function CaseFavoritoDrawer({ caso, isOpen, onClose }: CaseFavoritoDrawer
               </div>
             </div>
 
+
             {/* Valor da Causa */}
             <div className="flex items-start gap-3">
               <div className="w-8 h-8 rounded-lg bg-[#D4AF37]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -178,6 +247,7 @@ export function CaseFavoritoDrawer({ caso, isOpen, onClose }: CaseFavoritoDrawer
                 <p className="text-sm text-[#1A2B3C] font-semibold">{caso.valorCausa}</p>
               </div>
             </div>
+
 
             {/* Responsável */}
             <div className="flex items-start gap-3">
@@ -191,14 +261,17 @@ export function CaseFavoritoDrawer({ caso, isOpen, onClose }: CaseFavoritoDrawer
             </div>
           </div>
 
+
           {/* Divisor */}
           <div className="mx-6 border-t border-gray-100" />
+
 
           {/* ── Contato do Cliente ──────────────────────────────────────────── */}
           <div className="px-6 py-5">
             <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-4">
               Contato do Cliente
             </p>
+
 
             <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-gray-100">
               <div className="w-9 h-9 rounded-lg bg-white border border-gray-100 shadow-sm flex items-center justify-center flex-shrink-0">
@@ -214,8 +287,10 @@ export function CaseFavoritoDrawer({ caso, isOpen, onClose }: CaseFavoritoDrawer
             </div>
           </div>
 
+
           {/* Divisor */}
           <div className="mx-6 border-t border-gray-100" />
+
 
           {/* ── Mini Timeline ───────────────────────────────────────────────── */}
           <div className="px-6 py-5 pb-8">
@@ -223,15 +298,20 @@ export function CaseFavoritoDrawer({ caso, isOpen, onClose }: CaseFavoritoDrawer
               <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
                 Últimas Movimentações
               </p>
-              <button className="flex items-center gap-1 text-[11px] text-[#D4AF37] font-medium hover:underline">
+              <button 
+                onClick={handleVerTodasMovimentacoes}
+                className="flex items-center gap-1 text-[11px] text-[#D4AF37] font-medium hover:underline"
+              >
                 Ver todas
                 <ChevronRight className="w-3 h-3" />
               </button>
             </div>
 
+
             <div className="relative">
               {/* Linha vertical da timeline */}
               <div className="absolute left-[15px] top-2 bottom-2 w-px bg-gradient-to-b from-slate-200 via-slate-100 to-transparent" />
+
 
               <div className="space-y-5">
                 {caso.movimentacoes.slice(0, 3).map((mov, i) => {
@@ -246,6 +326,7 @@ export function CaseFavoritoDrawer({ caso, isOpen, onClose }: CaseFavoritoDrawer
                       `}>
                         <Icon className={`w-3.5 h-3.5 ${cfg.color}`} />
                       </div>
+
 
                       {/* Conteúdo */}
                       <div className="flex-1 min-w-0 pt-0.5">
@@ -263,15 +344,23 @@ export function CaseFavoritoDrawer({ caso, isOpen, onClose }: CaseFavoritoDrawer
           </div>
         </div>
 
+
         {/* ── Rodapé com ações ─────────────────────────────────────────────── */}
         <div className="border-t border-gray-100 px-6 py-4 flex gap-3 bg-white rounded-bl-2xl">
-          <button className="flex-1 py-2.5 px-4 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors font-medium">
+          <button 
+            onClick={handleExportarPDF}
+            className="flex-1 py-2.5 px-4 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors font-medium"
+          >
             Exportar PDF
           </button>
-          <button className="flex-1 py-2.5 px-4 rounded-lg bg-[#1A2B3C] text-sm text-white hover:bg-[#243447] transition-colors font-medium shadow-sm">
+          <button 
+            onClick={handleVerProcessoCompleto}
+            className="flex-1 py-2.5 px-4 rounded-lg bg-[#1A2B3C] text-sm text-white hover:bg-[#243447] transition-colors font-medium shadow-sm"
+          >
             Ver Processo Completo
           </button>
         </div>
+
 
       </aside>
     </>

@@ -47,7 +47,7 @@ export interface Processo {
 
 // funções
 export async function buscarClientes(): Promise<ClienteAPI[]> {
-  const response = await api.get("/clientes/");
+  const response = await api.get("/clientes");
   const data = response.data;
   
   // garante que sempre retorna array
@@ -63,7 +63,7 @@ export async function buscarClientes(): Promise<ClienteAPI[]> {
 export async function buscarProcessos(
   clientesMap: Record<number, string>
 ): Promise<Processo[]> {
-  const response = await api.get("/processos/");
+  const response = await api.get("/processos");
   const data: ProcessoAPI[] = response.data;
 
   return data.map((p) => ({
@@ -89,5 +89,5 @@ export async function buscarProcessos(
 }
 
 export async function criarProcesso(payload: CriarProcessoPayload): Promise<void> {
-  await api.post("/processos/", payload);
+  await api.post("/processos", payload);
 }
