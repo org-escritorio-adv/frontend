@@ -127,7 +127,7 @@ function ModalNotificacoes({
     {
       key:   'novasMovimentacoes',
       label: 'Novas Movimentações',
-      desc:  'Notificação automática a cada nova movimentação detectada via Jusbrasil.',
+      desc:  'Notificação automática a cada nova movimentação detectada via DataJud.',
     },
     {
       key:   'relatoriosSemanais',
@@ -221,9 +221,9 @@ function ModalNotificacoes({
   );
 }
 
-// ─── Modal: Integração Jusbrasil ──────────────────────────────────────────────
+// ─── Modal: Integração API ──────────────────────────────────────────────
 
-function ModalJusbrasil({
+function ModalDataJud({
   isOpen,
   onClose,
 }: {
@@ -260,7 +260,7 @@ function ModalJusbrasil({
             <Link2 className="w-4 h-4 text-[#1A2B3C]" />
           </div>
           <div>
-            <h4 className="text-[#1A2B3C] font-semibold">Integração Jusbrasil</h4>
+            <h4 className="text-[#1A2B3C] font-semibold">Integração DataJud</h4>
             <p className="text-xs text-slate-400">Status da API e controles de sincronização</p>
           </div>
         </div>
@@ -343,7 +343,7 @@ function ModalJusbrasil({
           `}
         >
           <RefreshCw className={`w-4 h-4 ${sincronizando ? 'animate-spin' : ''}`} />
-          {sincronizando ? 'Sincronizando com Jusbrasil…' : 'Sincronizar Agora'}
+          {sincronizando ? 'Sincronizando com DataJud…' : 'Sincronizar Agora'}
         </button>
 
         {/* Aviso */}
@@ -368,7 +368,7 @@ function ModalJusbrasil({
 
 // ─── SettingsView (principal) ─────────────────────────────────────────────────
 
-type ModalAberto = 'notificacoes' | 'jusbrasil' | null;
+type ModalAberto = 'notificacoes' | 'datajud' | null;
 
 export function SettingsView() {
   const [hoveredRow,   setHoveredRow]   = useState<string | null>(null);
@@ -401,11 +401,11 @@ export function SettingsView() {
       badge: { text: 'Ativo', color: 'bg-emerald-100 text-emerald-700' },
     },
     {
-      id:    'jusbrasil',
-      label: 'Integração Jusbrasil',
+      id:    'datajud',
+      label: 'Integração DataJud',
       desc:  'API conectada · Sincronização automática ativa',
       icon:  Link2,
-      modal: 'jusbrasil',
+      modal: 'datajud',
       badge: { text: 'Conectado', color: 'bg-blue-100 text-blue-700' },
     },
     {
@@ -431,8 +431,8 @@ export function SettingsView() {
         isOpen={modalAberto === 'notificacoes'}
         onClose={fecharModal}
       />
-      <ModalJusbrasil
-        isOpen={modalAberto === 'jusbrasil'}
+      <ModalDataJud
+        isOpen={modalAberto === 'datajud'}
         onClose={fecharModal}
       />
 

@@ -97,7 +97,7 @@ export function PesquisaMobile() {
               apiStatus === "online" ? "bg-green-500" : "bg-red-500"
             }`}
           />
-          API Jusbrasil:&nbsp;
+          API DataJud:&nbsp;
           <strong>{apiStatus === "online" ? "Online" : "Offline"}</strong>
           {apiStatus === "online" && <CheckCircle2 className="w-3.5 h-3.5 ml-0.5" />}
         </div>

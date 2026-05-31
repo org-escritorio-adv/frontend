@@ -171,7 +171,7 @@ export function SearchView() {
 
       {/* ── Título ─────────────────────────────────────────────────────────── */}
       <div className="mb-6">
-        <h2 className="text-[#1A2B3C] mb-2">Busca Global Jusbrasil</h2>
+        <h2 className="text-[#1A2B3C] mb-2">Busca Global de Processos</h2>
         <p className="text-slate-600">Consulte a base nacional de tribunais para localizar e importar novos processos</p>
       </div>
 
@@ -189,7 +189,7 @@ export function SearchView() {
           <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
         )}
         <span className={`text-sm ${apiStatus === 'online' ? 'text-green-700' : 'text-red-700'}`}>
-          Status da API Jusbrasil:{' '}
+          Status da API DataJud:{' '}
           <strong>{apiStatus === 'online' ? 'Online' : 'Offline'}</strong>
           {apiStatus === 'online' && (
             <span className="ml-2 text-green-500">· Sincronização automática ativa</span>
@@ -207,7 +207,7 @@ export function SearchView() {
             onChange={(e) => setFilterType(e.target.value)}
             className="px-4 py-3 border border-gray-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#D4AF37] text-sm"
           >
-            <option value="processo">Buscar no Jusbrasil por:</option>
+            <option value="processo">Buscar no DataJud por:</option>
             <option value="cliente">Nome do Cliente</option>
             <option value="cpfcnpj">CPF / CNPJ</option>
           </select>
@@ -327,7 +327,7 @@ export function SearchView() {
       {/* ── Tabela de Resultados ────────────────────────────────────────────── */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="text-[#1A2B3C]">Resultados da API Jusbrasil</h3>
+          <h3 className="text-[#1A2B3C]">Resultados da API DataJud</h3>
           <span className="text-sm text-slate-500">{resultados.length} processos encontrados</span>
         </div>
 

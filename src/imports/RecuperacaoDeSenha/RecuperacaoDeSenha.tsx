@@ -1,5 +1,5 @@
 import svgPaths from "./svg-itc0dxltwr";
-import imgLogo1 from "./c94d0251b0fd23670e2fa6c6fa526ecff71beb6f.png";
+import imgLogo1 from "../../imports/logo.png";
 
 function Heading() {
   return (
