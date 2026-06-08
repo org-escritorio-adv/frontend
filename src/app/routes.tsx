@@ -13,76 +13,52 @@ import { EquipeMobile } from "./components/mobile/EquipeMobile";
 import { AjustesMobile } from "./components/mobile/AjustesMobile";
 import { CaseDetailsMobile } from "./components/mobile/CaseDetailsMobile";
 import { useIsMobile } from "./hooks/useIsMobile";
+import { routePaths } from "./routeConfig";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Portão para /dashboard
-//   • Mobile  → redireciona para /app   (MobileLayout)
-//   • Desktop → renderiza DashboardShell
-// ─────────────────────────────────────────────────────────────────────────────
+
 function DashboardGate() {
   const isMobile = useIsMobile();
-  if (isMobile) return <Navigate to="/app" replace />;
+  if (isMobile) return <Navigate to={routePaths.app} replace />;
   return <DashboardShell />;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Portão para /app  (componente-pai do grupo de rotas mobile)
-//   • Desktop → redireciona para /dashboard (DashboardShell)
-//   • Mobile  → renderiza MobileLayout com <Outlet /> para os filhos
-// ─────────────────────────────────────────────────────────────────────────────
+
 function MobileGate() {
   const isMobile = useIsMobile();
-  if (!isMobile) return <Navigate to="/dashboard" replace />;
+  if (!isMobile) return <Navigate to={routePaths.dashboard} replace />;
   return <MobileLayout />;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Utilitários
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Redireciona o legado /caso/:caseId → /app/caso/:caseId */
 function LegacyCaseRedirect() {
   const { caseId } = useParams();
-  return <Navigate to={`/app/caso/${caseId}`} replace />;
+  return <Navigate to={routePaths.appCaseDetails(caseId ?? "")} replace />;
 }
 
-/** Qualquer rota desconhecida → Landing Page */
 function NotFound() {
   return <Navigate to="/" replace />;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Router
-// ─────────────────────────────────────────────────────────────────────────────
 export const router = createBrowserRouter([
-  // ── Páginas públicas ─────────────────────────────────
   {
-    path: "/",
+    path: routePaths.landing,
     Component: LandingPage,
   },
   {
-    path: "/login",
+    path: routePaths.login,
     Component: LoginPage,
   },
   {
-    path: "/recuperar-senha",
+    path: routePaths.recoverPassword,
     Component: RecuperacaoSenhaPage,
   },
-
-  // ── Dashboard com renderização condicional ───────────
-  //    Mobile  → redireciona para /app
-  //    Desktop → DashboardShell
   {
-    path: "/dashboard",
+    path: routePaths.dashboard,
     Component: DashboardGate,
   },
 
-  // ── App mobile com renderização condicional ──────────
-  //    Desktop → redireciona para /dashboard
-  //    Mobile  → MobileLayout + sub-rotas abaixo
   {
-    path: "/app",
-    Component: MobileGate,   // ← portão; MobileLayout renderizado dentro dele
+    path: routePaths.app,
+    Component: MobileGate,   
     children: [
       { index: true,              Component: DashboardMobile   },
       { path: "casos",            Component: KanbanMobile      },
@@ -95,7 +71,6 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // ── Legacy & catch-all ───────────────────────────────
   {
     path: "/caso/:caseId",
     Component: LegacyCaseRedirect,

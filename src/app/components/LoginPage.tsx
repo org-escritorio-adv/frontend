@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Eye, EyeOff } from "lucide-react";
 import imgLogin from "../../imports/logo.png";
+import { routePaths } from "../routeConfig";
+
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -15,7 +17,7 @@ export function LoginPage() {
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      navigate("/dashboard");
+      navigate(routePaths.dashboard);
     }, 900);
   };
 
@@ -24,6 +26,25 @@ export function LoginPage() {
       className="min-h-screen flex flex-col"
       style={{ fontFamily: "'Inter', 'Roboto', sans-serif", background: "#f6f5f5" }}
     >
+      {/* ── Top header ───────────────── */}
+      <header className="sticky top-0 z-20 bg-white border-b border-[#e5e7eb] h-16 flex items-center justify-between px-8 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.06)]">
+        <div>
+          <p className="text-[#1a2b3c] text-[20px] leading-[28px]" style={{ fontWeight: 500 }}>
+            Barcelos &amp; Takaki
+          </p>
+          <p className="text-[#62748e] text-[13px] leading-[18px]">
+            Sistema de Gerenciamento Legal
+          </p>
+        </div>
+        <Link
+          to={routePaths.landing}
+          className="h-10 px-5 bg-[#c5a059] text-[#121212] text-[13px] rounded flex items-center justify-center hover:bg-[#b8903f] transition-colors"
+          style={{ fontFamily: "'Montserrat', 'Inter', sans-serif", fontWeight: 500 }}
+        >
+          Área Pública
+        </Link>
+      </header>
+
       {/* ── Main content ─────────────────────────────────── */}
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-16">
         {/* Logo */}
@@ -44,7 +65,7 @@ export function LoginPage() {
               className="text-[#1a2b3c] text-[20px] leading-[30px]"
               style={{ fontWeight: 500 }}
             >
-              Bem vindo a Área do Advogado
+              Bem vindo á Área do Advogado
             </h2>
             <p className="text-[#45556c] text-[16px] leading-[24px] mt-1">
               Insira suas credenciais de Login
@@ -107,7 +128,7 @@ export function LoginPage() {
           <div className="text-center mt-5 flex flex-col items-center gap-0.5">
             <p className="text-[#45556c] text-[16px] leading-[24px]">ou</p>
             <Link
-              to="/recuperar-senha"
+              to={routePaths.recoverPassword}
               className="text-[#45556c] text-[16px] leading-[24px] underline hover:text-[#1a2b3c] transition-colors"
             >
               recupere sua senha
@@ -116,24 +137,6 @@ export function LoginPage() {
         </div>
       </main>
 
-      {/* ── Bottom bar ───────────────────────────────────── */}
-      <footer className="bg-white border-t border-[#e5e7eb] h-16 flex items-center justify-between px-8 shadow-[0px_-1px_3px_0px_rgba(0,0,0,0.06)]">
-        <div>
-          <p className="text-[#1a2b3c] text-[20px] leading-[28px]" style={{ fontWeight: 500 }}>
-            Barcelos &amp; Takaki
-          </p>
-          <p className="text-[#62748e] text-[13px] leading-[18px]">
-            Sistema de Gerenciamento Legal
-          </p>
-        </div>
-        <Link
-          to="/"
-          className="h-10 px-5 bg-[#c5a059] text-[#121212] text-[13px] rounded flex items-center justify-center hover:bg-[#b8903f] transition-colors"
-          style={{ fontFamily: "'Montserrat', 'Inter', sans-serif", fontWeight: 500 }}
-        >
-          Área Pública
-        </Link>
-      </footer>
     </div>
   );
 }

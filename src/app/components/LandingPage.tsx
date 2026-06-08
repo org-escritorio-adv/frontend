@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router";
+import { routePaths } from "../routeConfig";
 import {
   Heart, Scale, Briefcase, Building2, Home, Receipt,
   Phone, Mail, MapPin, Menu, X, ChevronRight,
@@ -120,7 +121,7 @@ function Navbar({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => voi
 
         {/* CTA */}
         <div className="hidden md:flex items-center gap-3">
-          <Link to="/login"
+          <Link to={routePaths.login}
             className="h-[40px] px-5 rounded-[10px] text-[#f5f5f5] text-[14px] border border-[rgba(197,160,89,0.4)] hover:border-[#c5a059] hover:text-[#c5a059] transition-all flex items-center"
             style={montserrat}>
             Área do Advogado
@@ -140,7 +141,7 @@ function Navbar({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => voi
             <a key={l.label} href={l.href} onClick={() => setOpen(false)}
               className="text-[#f5f5f5] text-[16px]" style={montserrat}>{l.label}</a>
           ))}
-          <Link to="/login" className="text-[#c5a059] text-[16px]" style={montserrat} onClick={() => setOpen(false)}>
+          <Link to={routePaths.login} className="text-[#c5a059] text-[16px]" style={montserrat} onClick={() => setOpen(false)}>
             Área do Advogado →
           </Link>
         </div>
@@ -821,7 +822,7 @@ function Footer() {
                 ["Nossa Equipe",    "#equipe"  ],
                 ["Enviar Caso",     "#analisar-caso"],
                 ["Contato",        "#contato" ],
-                ["Área do Advogado", "/login"  ],
+                ["Área do Advogado", routePaths.login  ],
               ].map(([label, href]) => (
                 <li key={label}>
                   {href.startsWith("/") ? (
