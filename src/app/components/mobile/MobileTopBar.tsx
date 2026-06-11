@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Link, useLocation } from "react-router";
 import { AppLogo } from "../AppLogo";
+import { routePaths } from "../../routeConfig";
 
 // ── Dados mock ──────────────────────────────────────────────────────────────
 
@@ -83,16 +84,16 @@ export function MobileTopBar() {
   const location = useLocation();
 
   const navItems = [
-    { path: "/app",          icon: LayoutDashboard, label: "Dashboard"  },
-    { path: "/app/casos",    icon: Briefcase,       label: "Meus Casos" },
-    { path: "/app/pesquisa", icon: Search,          label: "Pesquisa"   },
-    { path: "/app/cms",      icon: FileText,        label: "CMS"        },
-    { path: "/app/ajustes",  icon: Settings,        label: "Ajustes"    },
+    { path: routePaths.app,         icon: LayoutDashboard, label: "Dashboard"  },
+    { path: routePaths.appCases,    icon: Briefcase,       label: "Meus Casos" },
+    { path: routePaths.appPesquisa, icon: Search,          label: "Pesquisa"   },
+    { path: routePaths.appCMS,      icon: FileText,        label: "CMS"        },
+    { path: routePaths.appAjustes,  icon: Settings,        label: "Ajustes"    },
   ];
 
   const isActive = (path: string) =>
-    path === "/app"
-      ? location.pathname === "/app" || location.pathname === "/app/"
+    path === routePaths.app
+      ? location.pathname === routePaths.app || location.pathname === `${routePaths.app}/`
       : location.pathname.startsWith(path);
 
   // Fecha todos os painéis flutuantes

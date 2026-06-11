@@ -1,23 +1,24 @@
 import { Outlet, useLocation, Link } from "react-router";
 import { LayoutDashboard, Briefcase, Scale, Search, FileText, Users, Settings } from "lucide-react";
 import { MobileTopBar } from "./MobileTopBar";
+import { routePaths } from "../../routeConfig";
 
 export function MobileLayout() {
   const location = useLocation();
 
   const navItems = [
-    { path: "/app",           icon: LayoutDashboard, label: "Dashboard"  },
-    { path: "/app/casos",     icon: Briefcase,       label: "Casos"      },
-    { path: "/app/processos", icon: Scale,           label: "Processos"  },
-    { path: "/app/pesquisa",  icon: Search,          label: "Pesquisa"   },
-    { path: "/app/cms",       icon: FileText,        label: "CMS"        },
-    { path: "/app/equipe",    icon: Users,           label: "Equipe"     },
-    { path: "/app/ajustes",   icon: Settings,        label: "Ajustes"    },
+    { path: routePaths.app,           icon: LayoutDashboard, label: "Dashboard"  },
+    { path: routePaths.appCases,      icon: Briefcase,       label: "Casos"      },
+    { path: routePaths.appProcessos,  icon: Scale,           label: "Processos"  },
+    { path: routePaths.appPesquisa,   icon: Search,          label: "Pesquisa"   },
+    { path: routePaths.appCMS,        icon: FileText,        label: "CMS"        },
+    { path: routePaths.appEquipe,     icon: Users,           label: "Equipe"     },
+    { path: routePaths.appAjustes,    icon: Settings,        label: "Ajustes"    },
   ];
 
   const isActive = (path: string) => {
-    if (path === "/app") {
-      return location.pathname === "/app" || location.pathname === "/app/";
+    if (path === routePaths.app) {
+      return location.pathname === routePaths.app || location.pathname === `${routePaths.app}/`;
     }
     return location.pathname.startsWith(path);
   };
