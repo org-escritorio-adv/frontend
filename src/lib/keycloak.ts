@@ -1,9 +1,9 @@
 import Keycloak from 'keycloak-js';
 
 export const keycloak = new Keycloak({
-  url: 'http://localhost:8080',
-  realm: 'escritorio-adv',
-  clientId: 'backend-api'
+  url: import.meta.env.VITE_KEYCLOAK_URL,
+  realm: import.meta.env.VITE_KEYCLOAK_REALM,
+  clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID,
 });
 
 export async function initKeycloak() {
@@ -19,4 +19,3 @@ export async function initKeycloak() {
   
   return authenticated;
 }
-
