@@ -1,7 +1,9 @@
+import React from "react";
 import { createBrowserRouter, Navigate, useParams } from "react-router";
 import { LandingPage } from "./components/LandingPage";
 import { LoginPage } from "./components/LoginPage";
 import { RecuperacaoSenhaPage } from "./components/RecuperacaoSenhaPage";
+import { RedefinicaoSenhaPage } from "./components/RedefinicaoSenhaPage";
 import { DashboardShell } from "./components/DashboardShell";
 import { MobileLayout } from "./components/mobile/MobileLayout";
 import { DashboardMobile } from "./components/mobile/DashboardMobile";
@@ -14,6 +16,12 @@ import { AjustesMobile } from "./components/mobile/AjustesMobile";
 import { CaseDetailsMobile } from "./components/mobile/CaseDetailsMobile";
 import { useIsMobile } from "./hooks/useIsMobile";
 import { routePaths } from "./routeConfig";
+import { isAuthenticated } from "../services/auth.service";
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  if (!isAuthenticated()) return <Navigate to={routePaths.login} replace />;
+  return <>{children}</>;
+}
 
 
 function DashboardGate() {
@@ -52,13 +60,17 @@ export const router = createBrowserRouter([
     Component: RecuperacaoSenhaPage,
   },
   {
+    path: routePaths.resetPassword,
+    Component: RedefinicaoSenhaPage,
+  },
+  {
     path: routePaths.dashboard,
-    Component: DashboardGate,
+    element: <ProtectedRoute><DashboardGate /></ProtectedRoute>,
   },
 
   {
     path: routePaths.app,
-    Component: MobileGate,   
+    element: <ProtectedRoute><MobileGate /></ProtectedRoute>,
     children: [
       { index: true,              Component: DashboardMobile   },
       { path: "casos",            Component: KanbanMobile      },
