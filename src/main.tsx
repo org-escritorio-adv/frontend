@@ -4,7 +4,7 @@ import App from './app/App.tsx';
 import keycloak from './keycloak';
 import './styles/index.css';
 
-keycloak.init({ onLoad: 'login-required' }).then((authenticated) => {
+keycloak.init({ onLoad: 'login-required', checkLoginIframe: false }).then((authenticated) => {
   if (authenticated) {
     localStorage.setItem('token', keycloak.token || '');
     
