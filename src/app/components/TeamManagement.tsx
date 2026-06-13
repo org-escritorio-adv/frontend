@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   X, Plus, Settings2, Edit, Trash2, Shield, UserCheck,
-  Users, CheckCircle, AlertTriangle, Lock, Eye,
+  Users, CheckCircle, AlertTriangle, Lock, Eye, EyeOff,
   FileEdit, Globe, Download, Columns3, ChevronDown,
   Mail, Phone, BadgeCheck, UserX,
 } from 'lucide-react';
+import { criarUsuario, listarUsuarios } from '../../services/equipe.service';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -12,7 +13,7 @@ type NivelAcesso = 'Admin' | 'Advogado' | 'Estagiário';
 type StatusUsuario = 'Ativo' | 'Inativo' | 'Pendente';
 
 interface Usuario {
-  id: number;
+  id: string;
   nome: string;
   email: string;
   telefone: string;
@@ -223,7 +224,7 @@ function ModalPermissoes({
   isOpen: boolean;
   usuario: Usuario | null;
   onClose: () => void;
-  onSave: (id: number, permissoes: Record<string, boolean>) => void;
+  onSave: (id: string, permissoes: Record<string, boolean>) => void;
 }) {
   const [perms, setPerms] = useState<Record<string, boolean>>({});
   const [salvando, setSalvando] = useState(false);
@@ -397,32 +398,46 @@ function ModalAdicionarUsuario({
 }: {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (u: Omit<Usuario, 'id'>) => void;
+  onAdd: () => void;
 }) {
-  const [form, setForm] = useState({ nome: '', email: '', telefone: '', nivel: 'Advogado' as NivelAcesso });
-  const [salvando, setSalvando] = useState(false);
-  const [salvo,    setSalvo]    = useState(false);
+  const [form, setForm] = useState({ nome: '', email: '', senha: '', nivel: 'Advogado' as NivelAcesso });
+  const [salvando,  setSalvando]  = useState(false);
+  const [salvo,     setSalvo]     = useState(false);
+  const [erro,      setErro]      = useState('');
+  const [showSenha, setShowSenha] = useState(false);
 
   useEffect(() => {
-    if (isOpen) { setForm({ nome: '', email: '', telefone: '', nivel: 'Advogado' }); setSalvo(false); }
+    if (isOpen) {
+      setForm({ nome: '', email: '', senha: '', nivel: 'Advogado' });
+      setSalvo(false);
+      setErro('');
+      setShowSenha(false);
+    }
   }, [isOpen]);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
+    if (!form.nome.trim() || !form.email.trim() || !form.senha.trim()) {
+      setErro('Preencha nome, e-mail e senha temporária.');
+      return;
+    }
     setSalvando(true);
-    setTimeout(() => {
-      setSalvando(false);
-      setSalvo(true);
-      onAdd({
-        nome: form.nome || 'Novo Usuário',
-        email: form.email || 'novo@barcelostakaki.adv.br',
-        telefone: form.telefone || '(61) 99999-0000',
-        nivel: form.nivel,
-        status: 'Pendente',
-        avatar: '',
-        permissoes: { ...permissoesPadrao[form.nivel] },
+    setErro('');
+    try {
+      await criarUsuario({
+        nome: form.nome,
+        email: form.email,
+        senha: form.senha,
+        perfil: form.nivel,
       });
+      setSalvo(true);
+      onAdd();
       setTimeout(onClose, 900);
-    }, 700);
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setErro(msg || 'Erro ao criar usuário. Tente novamente.');
+    } finally {
+      setSalvando(false);
+    }
   };
 
   return (
@@ -476,19 +491,39 @@ function ModalAdicionarUsuario({
           />
         </div>
 
-        {/* Telefone */}
+        {/* Senha temporária */}
         <div>
           <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-            <Phone className="w-3 h-3" /> Telefone (Brasília)
+            <Lock className="w-3 h-3" /> Senha Temporária
           </label>
-          <input
-            type="tel"
-            value={form.telefone}
-            onChange={(e) => setForm({ ...form, telefone: e.target.value })}
-            placeholder="(61) 9XXXX-XXXX"
-            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-[#1A2B3C] placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] transition"
-          />
+          <div className="relative">
+            <input
+              type={showSenha ? 'text' : 'password'}
+              value={form.senha}
+              onChange={(e) => setForm({ ...form, senha: e.target.value })}
+              placeholder="Mínimo 8 caracteres"
+              className="w-full px-4 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm text-[#1A2B3C] placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] transition"
+            />
+            <button
+              type="button"
+              onClick={() => setShowSenha((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              {showSenha ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+          <p className="text-[10px] text-slate-400 mt-1">
+            O usuário poderá redefinir a senha usando o fluxo de recuperação de conta.
+          </p>
         </div>
+
+        {/* Erro */}
+        {erro && (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-100">
+            <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+            <p className="text-xs text-red-600">{erro}</p>
+          </div>
+        )}
 
         {/* Nível de Acesso */}
         <div>
@@ -556,59 +591,66 @@ function ModalAdicionarUsuario({
   );
 }
 
+// ─── Helper: mapeia perfil da API para NivelAcesso do frontend ────────────────
+
+function perfilToNivel(perfil: string): NivelAcesso {
+  const mapa: Record<string, NivelAcesso> = {
+    Admin: 'Admin',
+    Advogado: 'Advogado',
+    'Estagiário': 'Estagiário',
+    Estagiario: 'Estagiário',
+  };
+  return mapa[perfil] ?? 'Advogado';
+}
+
 // ─── TeamManagement (tela principal) ─────────────────────────────────────────
 
 export function TeamManagement() {
-  const [usuarios, setUsuarios] = useState<Usuario[]>([
-    {
-      id: 1,
-      nome: 'Dr. Carlos Silva',
-      email: 'carlos.silva@barcelostakaki.adv.br',
-      telefone: '(61) 98765-4321',
-      nivel: 'Admin',
-      status: 'Ativo',
-      avatar: 'CS',
-      permissoes: { ...permissoesPadrao['Admin'] },
-    },
-    {
-      id: 2,
-      nome: 'Dra. Ana Costa',
-      email: 'ana.costa@barcelostakaki.adv.br',
-      telefone: '(61) 97654-3210',
-      nivel: 'Advogado',
-      status: 'Ativo',
-      avatar: 'AC',
-      permissoes: { ...permissoesPadrao['Advogado'] },
-    },
-    {
-      id: 3,
-      nome: 'Pedro Lima',
-      email: 'pedro.lima@barcelostakaki.adv.br',
-      telefone: '(61) 96543-2109',
-      nivel: 'Estagiário',
-      status: 'Pendente',
-      avatar: 'PL',
-      permissoes: { ...permissoesPadrao['Estagiário'] },
-    },
-  ]);
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [hoveredRow, setHoveredRow] = useState<string | null>(null);
+  const [permModal, setPermModal] = useState<{ isOpen: boolean; usuario: Usuario | null }>({ isOpen: false, usuario: null });
+  const [addModal, setAddModal] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
-  const [hoveredRow,       setHoveredRow]       = useState<number | null>(null);
-  const [permModal,        setPermModal]         = useState<{ isOpen: boolean; usuario: Usuario | null }>({ isOpen: false, usuario: null });
-  const [addModal,         setAddModal]          = useState(false);
-  const [confirmDelete,    setConfirmDelete]      = useState<number | null>(null);
+  const carregarUsuarios = useCallback(async () => {
+    try {
+      setCarregando(true);
+      const data = await listarUsuarios();
+      setUsuarios(data.map((u) => {
+        const nivel = perfilToNivel(u.perfil);
+        return {
+          id: u.id,
+          nome: u.nome,
+          email: u.email,
+          telefone: u.telefone,
+          nivel,
+          status: (['Ativo', 'Inativo', 'Pendente'].includes(u.status) ? u.status : 'Ativo') as StatusUsuario,
+          avatar: u.avatar,
+          permissoes: { ...permissoesPadrao[nivel] },
+        };
+      }));
+    } catch {
+      // mantém lista vazia em caso de erro de rede
+    } finally {
+      setCarregando(false);
+    }
+  }, []);
+
+  useEffect(() => { carregarUsuarios(); }, [carregarUsuarios]);
 
   const abrirPermissoes = (u: Usuario) => setPermModal({ isOpen: true, usuario: u });
   const fecharPermissoes = () => setPermModal({ isOpen: false, usuario: null });
 
-  const salvarPermissoes = (id: number, perms: Record<string, boolean>) => {
+  const salvarPermissoes = (id: string, perms: Record<string, boolean>) => {
     setUsuarios((prev) => prev.map((u) => u.id === id ? { ...u, permissoes: perms } : u));
   };
 
-  const adicionarUsuario = (novoU: Omit<Usuario, 'id'>) => {
-    setUsuarios((prev) => [...prev, { ...novoU, id: Date.now() }]);
+  const adicionarUsuario = () => {
+    carregarUsuarios();
   };
 
-  const removerUsuario = (id: number) => {
+  const removerUsuario = (id: string) => {
     setUsuarios((prev) => prev.filter((u) => u.id !== id));
     setConfirmDelete(null);
   };
@@ -728,7 +770,20 @@ export function TeamManagement() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {usuarios.map((u) => {
+                {carregando ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-sm text-slate-400">
+                      Carregando usuários…
+                    </td>
+                  </tr>
+                ) : usuarios.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-sm text-slate-400">
+                      Nenhum usuário encontrado.
+                    </td>
+                  </tr>
+                ) : null}
+                {!carregando && usuarios.map((u) => {
                   const isHov = hoveredRow === u.id;
                   const permAtivas = Object.values(u.permissoes).filter(Boolean).length;
                   const permTotal  = Object.values(u.permissoes).length;
