@@ -13,6 +13,12 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   if (keycloak.authenticated) {
     await keycloak.updateToken(30).catch(() => keycloak.login());
     config.headers.Authorization = `Bearer ${keycloak.token}`;
+  } else {
+    // Fallback para o auth.service.ts que salva o token no localStorage
+    const localToken = localStorage.getItem('token');
+    if (localToken) {
+      config.headers.Authorization = `Bearer ${localToken}`;
+    }
   }
   return config;
 });

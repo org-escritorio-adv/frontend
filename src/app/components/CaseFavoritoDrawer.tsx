@@ -4,6 +4,7 @@ import {
   Scale, FileText, Calendar, AlertCircle,
   Clock, ChevronRight, Star, ExternalLink,
 } from 'lucide-react';
+import { exportarPdfProcesso } from '../../services/processos.service';
 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -22,6 +23,7 @@ export interface Movimentacao {
 
 export interface CasoDetalhado {
   id: string;
+  cnj: string;
   cliente: string;
   status: StatusCaso;
   tribunal: string;
@@ -118,13 +120,18 @@ export function CaseFavoritoDrawer({
   };
 
 
-  const handleExportarPDF = () => {
+  const handleExportarPDF = async () => {
     if (onExportarPDF) {
       onExportarPDF(caso.id);
     } else {
-      console.log('Exportar PDF:', caso.id);
-      // TODO: Implementar exportação real com jsPDF ou similar
-      alert(`Exportando PDF do caso ${caso.id}\nCliente: ${caso.cliente}\nValor: ${caso.valorCausa}`);
+      try {
+        // Use a lib de toast se disponível, caso contrário use um alert simples para feedback
+        console.log('Baixando PDF do backend:', caso.id);
+        await exportarPdfProcesso(caso.id);
+      } catch (error) {
+        console.error("Erro ao exportar PDF:", error);
+        alert("Erro ao tentar baixar o PDF. Tente novamente mais tarde.");
+      }
     }
   };
 
@@ -218,8 +225,8 @@ export function CaseFavoritoDrawer({
                 <Scale className="w-4 h-4 text-slate-500" />
               </div>
               <div>
-                <p className="text-[11px] text-slate-400 mb-0.5">Número do Processo (CNJ)</p>
-                <p className="text-sm font-mono text-[#1A2B3C] font-medium">{caso.id}</p>
+                <p className="text-xs text-slate-500 mb-0.5">Número do Processo (CNJ)</p>
+                <p className="text-sm font-mono text-[#1A2B3C] font-medium">{caso.cnj}</p>
               </div>
             </div>
 

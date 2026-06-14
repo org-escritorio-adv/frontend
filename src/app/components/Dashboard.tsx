@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Clock, TrendingUp, AlertCircle, CheckCircle, FileText, Calendar, Star } from 'lucide-react';
 import { CaseFavoritoDrawer, type CasoDetalhado } from './CaseFavoritoDrawer';
+import { buscarProcessos, buscarClientes } from '../../services/processos.service';
 
 export function Dashboard() {
 
   // ── State do drawer ────────────────────────────────────────────────────────
   const [drawerAberto,   setDrawerAberto]   = useState(false);
   const [casoSelecionado, setCasoSelecionado] = useState<CasoDetalhado | null>(null);
+  const [casosDestacados, setCasosDestacados] = useState<CasoDetalhado[]>([]);
 
   const abrirDrawer = (caso: CasoDetalhado) => {
     setCasoSelecionado(caso);
@@ -15,69 +17,36 @@ export function Dashboard() {
 
   const fecharDrawer = () => setDrawerAberto(false);
 
-  // ── Dados enriquecidos dos casos favoritos ─────────────────────────────────
-  const casosDestacados: CasoDetalhado[] = [
-    {
-      id: '0001234-56.2024.8.26.0100',
-      cliente: 'Silva & Associados',
-      status: 'ativo',
-      tribunal: 'TJSP',
-      vara: '1ª Vara Cível de São Paulo',
-      valorCausa: 'R$ 2.450.000,00',
-      responsavel: 'Dr. Carlos Silva',
-      telefone: '(61) 98765-4321',
-      movimentacoes: [
-        { data: '03/04/2026', descricao: 'Decisão interlocutória — Perícia técnica deferida pelo juízo', tipo: 'decisao'  },
-        { data: '15/03/2026', descricao: 'Petição de juntada de documentos protocolada com sucesso',    tipo: 'peticao'  },
-        { data: '28/02/2026', descricao: 'Audiência de conciliação realizada sem acordo entre as partes', tipo: 'audiencia' },
-      ],
-    },
-    {
-      id: '0007890-12.2023.8.26.0577',
-      cliente: 'Costa Indústrias',
-      status: 'pendente',
-      tribunal: 'TJRJ',
-      vara: '2ª Vara Empresarial do Rio de Janeiro',
-      valorCausa: 'R$ 870.000,00',
-      responsavel: 'Dra. Ana Costa',
-      telefone: '(61) 99234-5678',
-      movimentacoes: [
-        { data: '01/04/2026', descricao: 'Prazo para contestação em 10 dias — atenção necessária',  tipo: 'prazo'     },
-        { data: '22/03/2026', descricao: 'Novo documento recebido da Receita Federal via sistema',  tipo: 'documento' },
-        { data: '10/03/2026', descricao: 'Despacho de distribuição publicado no DJe',               tipo: 'decisao'   },
-      ],
-    },
-    {
-      id: '0003456-78.2024.5.02.0038',
-      cliente: 'Oliveira Ltda',
-      status: 'concluído',
-      tribunal: 'TRT2',
-      vara: '15ª Vara do Trabalho de São Paulo',
-      valorCausa: 'R$ 125.000,00',
-      responsavel: 'Dr. Pedro Oliveira',
-      telefone: '(61) 99876-5432',
-      movimentacoes: [
-        { data: '28/03/2026', descricao: 'Acórdão publicado — trânsito em julgado confirmado',     tipo: 'decisao'  },
-        { data: '05/03/2026', descricao: 'Cálculos homologados pelo perito judicial nomeado',      tipo: 'documento' },
-        { data: '12/02/2026', descricao: 'Recurso ordinário julgado improcedente pela 3ª turma',  tipo: 'decisao'  },
-      ],
-    },
-    {
-      id: '0009012-34.2024.8.26.0602',
-      cliente: 'Santos Corporation',
-      status: 'ativo',
-      tribunal: 'TJSP',
-      vara: '3ª Vara Cível de Sorocaba',
-      valorCausa: 'R$ 1.200.000,00',
-      responsavel: 'Dr. Roberto Santos',
-      telefone: '(61) 97654-3210',
-      movimentacoes: [
-        { data: '04/04/2026', descricao: 'Prazo de resposta expira em 5 dias — urgente',              tipo: 'prazo'     },
-        { data: '30/03/2026', descricao: 'Audiência de instrução agendada para 20 de maio de 2026',   tipo: 'audiencia' },
-        { data: '18/03/2026', descricao: 'Petição inicial recebida e distribuída ao juízo competente', tipo: 'peticao'  },
-      ],
-    },
-  ];
+  // ── Carregar casos reais ───────────────────────────────────────────────────
+  useEffect(() => {
+    async function carregarCasos() {
+      try {
+        const clientesApi = await buscarClientes();
+        const map: Record<number, string> = {};
+        clientesApi.forEach((c) => { map[c.id] = c.nome_razao_social; });
+        const processosApi = await buscarProcessos(map);
+        
+        const formatados: CasoDetalhado[] = processosApi.slice(0, 4).map(p => ({
+          id: p.id,
+          cnj: p.cnj,
+          cliente: p.cliente,
+          status: p.status === 'Ativo' ? 'ativo' : p.status === 'Arquivado' ? 'concluído' : 'pendente',
+          tribunal: p.tribunal || 'N/A',
+          vara: p.vara || 'N/A',
+          valorCausa: p.valorCausa || 'R$ 0,00',
+          responsavel: 'Responsável',
+          telefone: 'Não informado',
+          movimentacoes: [
+            { data: p.ultimaMovimentacao.data, descricao: p.ultimaMovimentacao.descricao, tipo: 'peticao' }
+          ]
+        }));
+        setCasosDestacados(formatados);
+      } catch (e) {
+        console.error("Erro ao carregar casos na dashboard:", e);
+      }
+    }
+    carregarCasos();
+  }, []);
 
   const atividadesRecentes = [
     { tipo: 'atualizacao', processo: '0001234-56.2024.8.26.0100', descricao: 'Petição protocolada com sucesso',              tempo: 'há 2 horas' },
@@ -219,7 +188,7 @@ export function Dashboard() {
                     </div>
 
                     {/* Número CNJ */}
-                    <div className="text-xs text-slate-500 mb-3 font-mono">{caso.id}</div>
+                    <div className="text-xs text-slate-500 mb-3 font-mono">{caso.cnj}</div>
 
                     {/* Rodapé do card */}
                     <div className="flex items-center justify-between">

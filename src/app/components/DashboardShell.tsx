@@ -45,6 +45,7 @@ export function DashboardShell() {
         if (selectedProcessoId) {
           return (
             <CaseDetails
+              processoId={selectedProcessoId}
               onBack={() => setSelectedProcessoId(null)}
             />
           );
