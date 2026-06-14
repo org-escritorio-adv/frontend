@@ -16,3 +16,14 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   }
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      keycloak.login();
+    }
+    const mensagem = error.response?.data?.detail ?? error.message ?? 'Erro inesperado';
+    return Promise.reject(new Error(mensagem));
+  }
+);
