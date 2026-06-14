@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  Search, RefreshCw, Plus, Eye,
+  Search, RefreshCw, Plus, Eye, Download,
   Scale, Calendar, FileText, AlertCircle, Archive,
   Hash, Building2, Clock, ArrowUpRight,
 } from "lucide-react";
@@ -15,6 +15,7 @@ import {
   buscarClientes,
   buscarProcessos,
   criarProcesso,
+  exportarCsvProcessos,
   type Processo,
   type ClienteAPI,
   type CriarProcessoPayload,
@@ -170,6 +171,20 @@ export function Processos({ onViewProcess }: Processos) {
     setTimeout(() => setSyncing(false), 2200);
   };
 
+  const [exporting, setExporting] = useState(false);
+  const handleExportCsv = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await exportarCsvProcessos();
+    } catch (error) {
+      console.error("Erro ao exportar CSV:", error);
+      alert("Erro ao tentar baixar o arquivo CSV.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-slate-50">
 
@@ -184,6 +199,15 @@ export function Processos({ onViewProcess }: Processos) {
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={handleExportCsv}
+              disabled={exporting}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 text-sm text-[#D4AF37] bg-white hover:bg-slate-50 hover:border-slate-300 transition-all disabled:opacity-60"
+            >
+              <Download className={`w-4 h-4 ${exporting ? "animate-pulse" : ""}`} />
+              {exporting ? "Baixando..." : "Exportar CSV"}
+            </button>
+
             <button
               onClick={handleSync}
               disabled={syncing}

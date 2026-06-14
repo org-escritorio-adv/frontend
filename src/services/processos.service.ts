@@ -110,3 +110,21 @@ export async function exportarPdfProcesso(processoId: string): Promise<void> {
   link.parentNode?.removeChild(link);
   window.URL.revokeObjectURL(url);
 }
+
+export async function exportarCsvProcessos(): Promise<void> {
+  const response = await api.get("/processos/exportar-csv", {
+    responseType: "blob",
+  });
+  
+  const blob = new Blob([response.data], { type: "text/csv" });
+  const url = window.URL.createObjectURL(blob);
+  
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", "processos.csv");
+  document.body.appendChild(link);
+  link.click();
+  
+  link.parentNode?.removeChild(link);
+  window.URL.revokeObjectURL(url);
+}

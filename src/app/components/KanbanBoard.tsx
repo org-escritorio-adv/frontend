@@ -6,6 +6,7 @@ import {
   AlertCircle, Edit3, ArrowRight, Hash, MapPin, Download,
   Send, History,
 } from "lucide-react";
+import { exportarCsvProcessos } from "../../services/processos.service";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -974,6 +975,20 @@ export function KanbanBoard({ initialExpandedId, onClearExpandedId }: KanbanBoar
 
   const expandedData = expandedCardId ? findCard(expandedCardId) : null;
 
+  const [exporting, setExporting] = useState(false);
+  const handleExportCsv = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await exportarCsvProcessos();
+    } catch (error) {
+      console.error("Erro ao exportar CSV:", error);
+      alert("Erro ao tentar baixar o arquivo CSV.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-[#f4f5f7] overflow-hidden">
       {/* ── Page header ───────────────────────────────── */}
@@ -993,6 +1008,18 @@ export function KanbanBoard({ initialExpandedId, onClearExpandedId }: KanbanBoar
             <SlidersHorizontal className="w-3.5 h-3.5" />
             Ordenar
           </button>
+          
+          <div className="h-6 w-px bg-slate-200 mx-1" />
+
+          <button
+            onClick={handleExportCsv}
+            disabled={exporting}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[#D4AF37] text-sm border border-slate-200 rounded-lg bg-white hover:bg-slate-50 hover:border-slate-300 transition-colors font-medium disabled:opacity-60"
+          >
+            <Download className={`w-3.5 h-3.5 ${exporting ? "animate-pulse" : ""}`} />
+            {exporting ? "Baixando..." : "Exportar CSV"}
+          </button>
+
           <button
             onClick={() => setAddingInColumn("backlog")}
             className="flex items-center gap-1.5 px-4 py-1.5 bg-[#1A2B3C] text-white text-sm rounded-lg hover:bg-[#243447] transition-colors font-medium"
