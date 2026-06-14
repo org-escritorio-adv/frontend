@@ -91,3 +91,22 @@ export async function buscarProcessos(
 export async function criarProcesso(payload: CriarProcessoPayload): Promise<void> {
   await api.post("/processos", payload);
 }
+
+export async function exportarPdfProcesso(processoId: string): Promise<void> {
+  const response = await api.get(`/processos/${processoId}/exportar-pdf`, {
+    responseType: "blob",
+  });
+  
+  // Create a blob URL and trigger download
+  const blob = new Blob([response.data], { type: "application/pdf" });
+  const url = window.URL.createObjectURL(blob);
+  
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", `Processo_${processoId}.pdf`);
+  document.body.appendChild(link);
+  link.click();
+  
+  link.parentNode?.removeChild(link);
+  window.URL.revokeObjectURL(url);
+}

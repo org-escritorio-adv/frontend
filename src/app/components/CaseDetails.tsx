@@ -1,10 +1,22 @@
 import { Download, Upload, FileText, Calendar, MapPin, Users, Scale, Link2, Hash, DollarSign, ArrowLeft } from 'lucide-react';
+import { exportarPdfProcesso } from '../../services/processos.service';
 
 interface CaseDetailsProps {
   onBack?: () => void;
+  processoId?: string;
 }
 
-export function CaseDetails({ onBack }: CaseDetailsProps) {
+export function CaseDetails({ onBack, processoId = "1" }: CaseDetailsProps) {
+  const handleExportarPDF = async () => {
+    try {
+      console.log('Baixando PDF do backend:', processoId);
+      await exportarPdfProcesso(processoId);
+    } catch (error) {
+      console.error("Erro ao exportar PDF:", error);
+      alert("Erro ao tentar baixar o PDF do processo.");
+    }
+  };
+
   /* ── Dados técnicos do processo judicial (CNJ) ─────────────────────────── */
   const processo = {
     numero:          '0001234-56.2024.8.26.0100',
@@ -132,7 +144,10 @@ export function CaseDetails({ onBack }: CaseDetailsProps) {
         </div>
 
         {/* Exportar PDF */}
-        <button className="self-start px-6 py-3 bg-[#D4AF37] text-white rounded-lg hover:bg-[#B8941F] transition-colors flex items-center gap-2 shadow-md whitespace-nowrap">
+        <button 
+          onClick={handleExportarPDF}
+          className="self-start px-6 py-3 bg-[#D4AF37] text-white rounded-lg hover:bg-[#B8941F] transition-colors flex items-center gap-2 shadow-md whitespace-nowrap"
+        >
           <Download className="w-5 h-5" />
           Exportar para PDF
         </button>
