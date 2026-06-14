@@ -1,12 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Clock, TrendingUp, AlertCircle, CheckCircle, FileText, Calendar, Star } from 'lucide-react';
 import { CaseFavoritoDrawer, type CasoDetalhado } from './CaseFavoritoDrawer';
+import { buscarResumo, buscarAtividades, type ResumoDashboard, type AtividadeRecente } from '../../services/dashboard.service';
 
 export function Dashboard() {
 
   // ── State do drawer ────────────────────────────────────────────────────────
   const [drawerAberto,   setDrawerAberto]   = useState(false);
   const [casoSelecionado, setCasoSelecionado] = useState<CasoDetalhado | null>(null);
+
+  // ── State de dados reais ───────────────────────────────────────────────────
+  const [resumo, setResumo] = useState<ResumoDashboard | null>(null);
+  const [atividades, setAtividades] = useState<AtividadeRecente[]>([]);
+
+  useEffect(() => {
+    buscarResumo().then(setResumo).catch(() => {});
+    buscarAtividades().then(setAtividades).catch(() => {});
+  }, []);
 
   const abrirDrawer = (caso: CasoDetalhado) => {
     setCasoSelecionado(caso);
@@ -79,12 +89,12 @@ export function Dashboard() {
     },
   ];
 
-  const atividadesRecentes = [
-    { tipo: 'atualizacao', processo: '0001234-56.2024.8.26.0100', descricao: 'Petição protocolada com sucesso',              tempo: 'há 2 horas' },
-    { tipo: 'audiencia',   processo: '0007890-12.2023.8.26.0577', descricao: 'Audiência agendada para 15 de maio de 2026',   tempo: 'há 5 horas' },
-    { tipo: 'documento',   processo: '0003456-78.2024.5.02.0038', descricao: 'Novo documento recebido do tribunal',          tempo: 'há 1 dia'   },
-    { tipo: 'prazo',       processo: '0009012-34.2024.8.26.0602', descricao: 'Prazo de resposta em 5 dias',                  tempo: 'há 1 dia'   },
-  ];
+  const atividadesRecentes = atividades.slice(0, 4).map((a) => ({
+    tipo: 'atualizacao',
+    processo: String(a.processo_id),
+    descricao: a.descricao,
+    tempo: new Date(a.data).toLocaleDateString('pt-BR'),
+  }));
 
   const getCorStatus = (status: string) => {
     switch (status) {
@@ -138,31 +148,31 @@ export function Dashboard() {
               <span className="text-slate-600 text-sm">Casos Ativos</span>
               <TrendingUp className="w-5 h-5 text-green-500" />
             </div>
-            <div className="text-3xl text-[#1A2B3C]">24</div>
+            <div className="text-3xl text-[#1A2B3C]">{resumo?.processosAtivos ?? '—'}</div>
           </div>
 
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-slate-600 text-sm">Ações Pendentes</span>
+              <span className="text-slate-600 text-sm">Tarefas Abertas</span>
               <Clock className="w-5 h-5 text-yellow-500" />
             </div>
-            <div className="text-3xl text-[#1A2B3C]">8</div>
+            <div className="text-3xl text-[#1A2B3C]">{resumo?.tarefasAbertas ?? '—'}</div>
           </div>
 
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-slate-600 text-sm">Este Mês</span>
+              <span className="text-slate-600 text-sm">Total Processos</span>
               <CheckCircle className="w-5 h-5 text-blue-500" />
             </div>
-            <div className="text-3xl text-[#1A2B3C]">12</div>
+            <div className="text-3xl text-[#1A2B3C]">{resumo?.totalProcessos ?? '—'}</div>
           </div>
 
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-slate-600 text-sm">Prazos</span>
+              <span className="text-slate-600 text-sm">Prazos (7 dias)</span>
               <AlertCircle className="w-5 h-5 text-red-500" />
             </div>
-            <div className="text-3xl text-[#1A2B3C]">3</div>
+            <div className="text-3xl text-[#1A2B3C]">{resumo?.prazosProximos ?? '—'}</div>
           </div>
         </div>
 

@@ -5,6 +5,7 @@ import {
   FileEdit, Globe, Download, Columns3, ChevronDown,
   Mail, Phone, BadgeCheck, UserX,
 } from 'lucide-react';
+import { buscarUsuarios } from '../../services/equipe.service';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -591,6 +592,24 @@ export function TeamManagement() {
       permissoes: { ...permissoesPadrao['Estagiário'] },
     },
   ]);
+
+  useEffect(() => {
+    buscarUsuarios().then((apiUsuarios) => {
+      const mapped = apiUsuarios.map((u, idx) => ({
+        id: idx + 1,
+        nome: u.nome,
+        email: u.email,
+        telefone: u.telefone || '(—)',
+        nivel: (u.perfil as NivelAcesso) in permissoesPadrao
+          ? (u.perfil as NivelAcesso)
+          : 'Estagiário' as NivelAcesso,
+        status: (u.status === 'Ativo' || u.status === 'Inativo' ? u.status : 'Ativo') as StatusUsuario,
+        avatar: u.avatar || u.nome.slice(0, 2).toUpperCase(),
+        permissoes: { ...permissoesPadrao[(u.perfil as NivelAcesso) in permissoesPadrao ? (u.perfil as NivelAcesso) : 'Estagiário'] },
+      }));
+      setUsuarios(mapped);
+    }).catch(() => {});
+  }, []);
 
   const [hoveredRow,       setHoveredRow]       = useState<number | null>(null);
   const [permModal,        setPermModal]         = useState<{ isOpen: boolean; usuario: Usuario | null }>({ isOpen: false, usuario: null });
