@@ -2,6 +2,7 @@ export const routePaths = {
   landing: "/",
   login: "/login",
   recoverPassword: "/recuperar-senha",
+  resetPassword: "/tela-redefinicao",
   dashboard: "/dashboard",
   app: "/app",
   appCases: "/app/casos",

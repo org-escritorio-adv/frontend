@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router";
 import { Eye, EyeOff } from "lucide-react";
 import imgLogin from "../../imports/logo.png";
 import { routePaths } from "../routeConfig";
+import { login } from "../../services/auth.service";
 
 
 export function LoginPage() {
@@ -11,14 +12,20 @@ export function LoginPage() {
   const [senha, setSenha] = useState("");
   const [showSenha, setShowSenha] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    setError("");
+    try {
+      await login(email, senha);
       navigate(routePaths.dashboard);
-    }, 900);
+    } catch {
+      setError("E-mail ou senha incorretos.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -71,6 +78,11 @@ export function LoginPage() {
               Insira suas credenciais de Login
             </p>
           </div>
+
+          {/* Error */}
+          {error && (
+            <p className="text-red-500 text-sm text-center mb-1">{error}</p>
+          )}
 
           {/* Form */}
           <form onSubmit={handleLogin} className="flex flex-col gap-4">

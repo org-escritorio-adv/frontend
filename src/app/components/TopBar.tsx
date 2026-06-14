@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bell, User, X, Briefcase, AlertTriangle, Clock, CheckCircle, Scale, Settings, LogOut, ChevronDown, Shield, Globe } from 'lucide-react';
+import { useNavigate } from 'react-router';
 import { AppLogo } from './AppLogo';
 import { PrazosCalculadoraModal } from './PrazosCalculadoraModal';
+import { logout } from '../../services/auth.service';
+import { routePaths } from '../routeConfig';
 
 export interface AppNotification {
   id: string;
@@ -81,6 +84,13 @@ export function TopBar({ onNotificationClick }: TopBarProps) {
   const [calcOpen, setCalcOpen] = useState(false);
   const panelRef   = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    setProfileOpen(false);
+    await logout();
+    navigate(routePaths.login, { replace: true });
+  };
 
   const unreadCount = notifications.filter((n) => n.unread).length;
 
@@ -349,7 +359,7 @@ export function TopBar({ onNotificationClick }: TopBarProps) {
               {/* Sair da Conta */}
               <div className="px-2 py-2">
                 <button
-                  onClick={() => setProfileOpen(false)}
+                  onClick={handleLogout}
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left
                              hover:bg-red-50 transition-colors group"
                 >

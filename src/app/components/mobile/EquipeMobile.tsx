@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Plus,
   Users,
@@ -13,7 +13,12 @@ import {
   ChevronDown,
   Settings2,
   CheckCircle,
+  Lock,
+  Eye,
+  EyeOff,
+  AlertTriangle,
 } from "lucide-react";
+import { criarUsuario, listarUsuarios } from "../../../services/equipe.service";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -21,7 +26,7 @@ type NivelAcesso = "Admin" | "Advogado" | "Estagiário";
 type StatusUsuario = "Ativo" | "Inativo" | "Pendente";
 
 interface Usuario {
-  id: number;
+  id: string;
   nome: string;
   email: string;
   telefone: string;
@@ -145,37 +150,46 @@ function BottomSheetAdicionarUsuario({
 }: {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (u: Omit<Usuario, "id">) => void;
+  onAdd: () => void;
 }) {
   const [form, setForm] = useState({
     nome: "",
     email: "",
-    telefone: "",
+    senha: "",
     nivel: "Advogado" as NivelAcesso,
   });
-  const [salvando, setSalvando] = useState(false);
-  const [salvo, setSalvo] = useState(false);
+  const [salvando,  setSalvando]  = useState(false);
+  const [salvo,     setSalvo]     = useState(false);
+  const [erro,      setErro]      = useState("");
+  const [showSenha, setShowSenha] = useState(false);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
+    if (!form.nome.trim() || !form.email.trim() || !form.senha.trim()) {
+      setErro("Preencha nome, e-mail e senha temporária.");
+      return;
+    }
     setSalvando(true);
-    setTimeout(() => {
-      setSalvando(false);
-      setSalvo(true);
-      onAdd({
-        nome: form.nome || "Novo Usuário",
-        email: form.email || "novo@barcelostakaki.adv.br",
-        telefone: form.telefone || "(61) 99999-0000",
-        nivel: form.nivel,
-        status: "Pendente",
-        avatar: "",
-        permissoes: { ...permissoesPadrao[form.nivel] },
+    setErro("");
+    try {
+      await criarUsuario({
+        nome: form.nome,
+        email: form.email,
+        senha: form.senha,
+        perfil: form.nivel,
       });
+      setSalvo(true);
+      onAdd();
       setTimeout(() => {
         onClose();
-        setForm({ nome: "", email: "", telefone: "", nivel: "Advogado" });
+        setForm({ nome: "", email: "", senha: "", nivel: "Advogado" });
         setSalvo(false);
       }, 900);
-    }, 700);
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setErro(msg || "Erro ao criar usuário. Tente novamente.");
+    } finally {
+      setSalvando(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -248,19 +262,39 @@ function BottomSheetAdicionarUsuario({
             />
           </div>
 
-          {/* Telefone */}
+          {/* Senha temporária */}
           <div>
             <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-              <Phone className="w-2.5 h-2.5" /> Telefone
+              <Lock className="w-2.5 h-2.5" /> Senha Temporária
             </label>
-            <input
-              type="tel"
-              value={form.telefone}
-              onChange={(e) => setForm({ ...form, telefone: e.target.value })}
-              placeholder="(61) 9XXXX-XXXX"
-              className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm text-[#1A2B3C] placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] transition"
-            />
+            <div className="relative">
+              <input
+                type={showSenha ? "text" : "password"}
+                value={form.senha}
+                onChange={(e) => setForm({ ...form, senha: e.target.value })}
+                placeholder="Mínimo 8 caracteres"
+                className="w-full px-3.5 py-2.5 pr-10 border border-gray-200 rounded-lg text-sm text-[#1A2B3C] placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] transition"
+              />
+              <button
+                type="button"
+                onClick={() => setShowSenha((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                {showSenha ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="text-[10px] text-slate-400 mt-1">
+              O usuário poderá redefinir a senha no primeiro acesso.
+            </p>
           </div>
+
+          {/* Erro */}
+          {erro && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-100">
+              <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+              <p className="text-xs text-red-600">{erro}</p>
+            </div>
+          )}
 
           {/* Nível de Acesso */}
           <div>
@@ -322,46 +356,53 @@ function BottomSheetAdicionarUsuario({
   );
 }
 
+// ─── Helper: mapeia perfil da API para NivelAcesso do frontend ────────────────
+
+function perfilToNivel(perfil: string): NivelAcesso {
+  const mapa: Record<string, NivelAcesso> = {
+    Admin: "Admin",
+    Advogado: "Advogado",
+    "Estagiário": "Estagiário",
+    Estagiario: "Estagiário",
+  };
+  return mapa[perfil] ?? "Advogado";
+}
+
 // ─── EquipeMobile (tela principal) ────────────────────────────────────────────
 
 export function EquipeMobile() {
-  const [usuarios, setUsuarios] = useState<Usuario[]>([
-    {
-      id: 1,
-      nome: "Dr. Carlos Silva",
-      email: "carlos.silva@barcelostakaki.adv.br",
-      telefone: "(61) 98765-4321",
-      nivel: "Admin",
-      status: "Ativo",
-      avatar: "CS",
-      permissoes: { ...permissoesPadrao["Admin"] },
-    },
-    {
-      id: 2,
-      nome: "Dra. Ana Costa",
-      email: "ana.costa@barcelostakaki.adv.br",
-      telefone: "(61) 97654-3210",
-      nivel: "Advogado",
-      status: "Ativo",
-      avatar: "AC",
-      permissoes: { ...permissoesPadrao["Advogado"] },
-    },
-    {
-      id: 3,
-      nome: "Pedro Lima",
-      email: "pedro.lima@barcelostakaki.adv.br",
-      telefone: "(61) 96543-2109",
-      nivel: "Estagiário",
-      status: "Pendente",
-      avatar: "PL",
-      permissoes: { ...permissoesPadrao["Estagiário"] },
-    },
-  ]);
-
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [carregando, setCarregando] = useState(true);
   const [addModal, setAddModal] = useState(false);
 
-  const adicionarUsuario = (novoU: Omit<Usuario, "id">) => {
-    setUsuarios((prev) => [...prev, { ...novoU, id: Date.now() }]);
+  const carregarUsuarios = useCallback(async () => {
+    try {
+      setCarregando(true);
+      const data = await listarUsuarios();
+      setUsuarios(data.map((u) => {
+        const nivel = perfilToNivel(u.perfil);
+        return {
+          id: u.id,
+          nome: u.nome,
+          email: u.email,
+          telefone: u.telefone,
+          nivel,
+          status: (["Ativo", "Inativo", "Pendente"].includes(u.status) ? u.status : "Ativo") as StatusUsuario,
+          avatar: u.avatar,
+          permissoes: { ...permissoesPadrao[nivel] },
+        };
+      }));
+    } catch {
+      // mantém lista vazia em caso de erro de rede
+    } finally {
+      setCarregando(false);
+    }
+  }, []);
+
+  useEffect(() => { carregarUsuarios(); }, [carregarUsuarios]);
+
+  const adicionarUsuario = () => {
+    carregarUsuarios();
   };
 
   // ── Stats ──────────────────────────────────────────────────────────────────
@@ -447,8 +488,14 @@ export function EquipeMobile() {
         </button>
 
         {/* ── Lista de Usuários ──────────────────────────────────────────── */}
+        {carregando && (
+          <p className="text-center text-sm text-slate-400 py-8">Carregando usuários…</p>
+        )}
+        {!carregando && usuarios.length === 0 && (
+          <p className="text-center text-sm text-slate-400 py-8">Nenhum usuário encontrado.</p>
+        )}
         <div className="space-y-3">
-          {usuarios.map((u) => {
+          {!carregando && usuarios.map((u) => {
             const permAtivas = Object.values(u.permissoes).filter(Boolean)
               .length;
             const permTotal = Object.values(u.permissoes).length;

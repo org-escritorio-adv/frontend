@@ -1,20 +1,48 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { CheckCircle } from "lucide-react";
 import imgLogin from "../../imports/logo.png";
+import { forgotPassword, verifyResetToken } from "../../services/auth.service";
+import { routePaths } from "../routeConfig";
+
+type Step = "email" | "token";
 
 export function RecuperacaoSenhaPage() {
+  const navigate = useNavigate();
+  const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
+  const [token, setToken] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [debugToken, setDebugToken] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const res = await forgotPassword(email);
+      if (res.debug_token) setDebugToken(res.debug_token);
+      setStep("token");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erro ao enviar e-mail.");
+    } finally {
       setLoading(false);
-      setSent(true);
-    }, 900);
+    }
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      await verifyResetToken(email, token.trim().toLowerCase());
+      navigate(routePaths.resetPassword, { state: { email, token: token.trim().toLowerCase() } });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Token inválido ou expirado.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -53,7 +81,7 @@ export function RecuperacaoSenhaPage() {
           />
         </div>
 
-        {/* Card form */}
+        {/* Card */}
         <div className="w-full max-w-[363px]">
           {/* Heading */}
           <div className="text-center mb-7">
@@ -64,33 +92,22 @@ export function RecuperacaoSenhaPage() {
               Recupere sua senha
             </h2>
             <p className="text-[#45556c] text-[16px] leading-[24px] mt-1 max-w-[300px] mx-auto">
-              Digite seu e-mail e receba um link para redefinição de senha
+              {step === "email"
+                ? "Digite seu e-mail e receba um código para redefinição de senha"
+                : "Digite o código de 6 dígitos enviado para seu e-mail"}
             </p>
           </div>
 
-          {sent ? (
-            /* Success state */
-            <div className="flex flex-col items-center gap-3 py-6">
-              <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center">
-                <CheckCircle className="w-7 h-7 text-green-600" />
-              </div>
-              <p className="text-[#1a2b3c] text-base text-center" style={{ fontWeight: 500 }}>
-                E-mail enviado com sucesso!
-              </p>
-              <p className="text-[#45556c] text-sm text-center leading-relaxed">
-                Verifique sua caixa de entrada e siga as instruções para redefinir sua senha.
-              </p>
-              <Link
-                to="/login"
-                className="mt-2 text-[#45556c] text-[16px] underline hover:text-[#1a2b3c] transition-colors"
-              >
-                Voltar para o login
-              </Link>
+          {/* Error message */}
+          {error && (
+            <div className="mb-4 px-4 py-2 bg-red-50 border border-red-200 rounded-[10px] text-red-600 text-sm text-center">
+              {error}
             </div>
-          ) : (
-            /* Form */
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              {/* E-mail */}
+          )}
+
+          {/* Step 1 — E-mail */}
+          {step === "email" && (
+            <form onSubmit={handleSend} className="flex flex-col gap-4">
               <input
                 type="email"
                 placeholder="E-mail"
@@ -99,8 +116,6 @@ export function RecuperacaoSenhaPage() {
                 required
                 className="w-full h-[43px] px-5 bg-[#d9d9d9] rounded-[10px] text-[#45556c] text-[16px] placeholder-[#45556c] border-0 outline-none focus:ring-2 focus:ring-[#1a2b3c]/20 transition"
               />
-
-              {/* Submit */}
               <div className="flex justify-center mt-2">
                 <button
                   type="submit"
@@ -108,33 +123,85 @@ export function RecuperacaoSenhaPage() {
                   className="h-[32px] px-7 bg-[#1a2b3c] text-white text-[16px] rounded-[10px] flex items-center justify-center hover:bg-[#243447] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                   style={{ fontWeight: 500 }}
                 >
-                  {loading ? (
-                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
-                    </svg>
-                  ) : (
-                    "Recuperar senha"
-                  )}
+                  {loading ? <Spinner /> : "Enviar código"}
                 </button>
               </div>
             </form>
           )}
 
-          {/* Login link */}
-          {!sent && (
-            <div className="text-center mt-5 flex flex-col items-center gap-0.5">
-              <p className="text-[#45556c] text-[16px] leading-[24px]">ou</p>
-              <Link
-                to="/login"
-                className="text-[#45556c] text-[16px] leading-[24px] underline hover:text-[#1a2b3c] transition-colors"
+          {/* Step 2 — Token */}
+          {step === "token" && (
+            <form onSubmit={handleVerify} className="flex flex-col gap-4">
+              {/* Success indicator */}
+              <div className="flex items-center gap-3 px-4 py-3 bg-green-50 border border-green-200 rounded-[10px]">
+                <CheckCircle className="w-5 h-5 text-green-600 shrink-0" />
+                <p className="text-[#1a2b3c] text-sm">
+                  Código enviado para <strong>{email}</strong>
+                </p>
+              </div>
+
+              {/* Debug token (só aparece em desenvolvimento) */}
+              {debugToken && (
+                <div className="px-4 py-3 bg-yellow-50 border border-yellow-300 rounded-[10px] text-center">
+                  <p className="text-yellow-700 text-xs font-semibold mb-1">DEV — código gerado:</p>
+                  <span className="font-mono text-xl tracking-widest text-yellow-900 font-bold">
+                    {debugToken}
+                  </span>
+                </div>
+              )}
+
+              <input
+                type="text"
+                placeholder="Código (ex: a1b2c3)"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                required
+                maxLength={6}
+                className="w-full h-[43px] px-5 bg-[#d9d9d9] rounded-[10px] text-[#45556c] text-[16px] placeholder-[#45556c] border-0 outline-none focus:ring-2 focus:ring-[#1a2b3c]/20 transition tracking-widest font-mono"
+              />
+
+              <div className="flex justify-center mt-2">
+                <button
+                  type="submit"
+                  disabled={loading || token.length < 6}
+                  className="h-[32px] px-7 bg-[#1a2b3c] text-white text-[16px] rounded-[10px] flex items-center justify-center hover:bg-[#243447] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  style={{ fontWeight: 500 }}
+                >
+                  {loading ? <Spinner /> : "Verificar código"}
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => { setStep("email"); setError(""); setToken(""); }}
+                className="text-[#45556c] text-sm underline hover:text-[#1a2b3c] transition-colors"
               >
-                faça login
-              </Link>
-            </div>
+                Reenviar para outro e-mail
+              </button>
+            </form>
           )}
+
+          {/* Login link */}
+          <div className="text-center mt-5 flex flex-col items-center gap-0.5">
+            <p className="text-[#45556c] text-[16px] leading-[24px]">ou</p>
+            <Link
+              to="/login"
+              className="text-[#45556c] text-[16px] leading-[24px] underline hover:text-[#1a2b3c] transition-colors"
+            >
+              faça login
+            </Link>
+          </div>
         </div>
       </main>
     </div>
+  );
+}
+
+function Spinner() {
+  return (
+    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+    </svg>
   );
 }
