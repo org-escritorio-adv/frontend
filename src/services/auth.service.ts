@@ -26,7 +26,27 @@ export async function login(username: string, password: string): Promise<void> {
   localStorage.setItem('refresh_token', data.refresh_token);
 }
 
-export function logout(): void {
+export async function logout(): Promise<void> {
+  const refreshToken = localStorage.getItem('refresh_token');
+
+  if (refreshToken) {
+    try {
+      await fetch(
+        `${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/logout`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            client_id: CLIENT_ID,
+            refresh_token: refreshToken,
+          }),
+        }
+      );
+    } catch {
+      // ignora erro de rede — tokens locais serão removidos de qualquer forma
+    }
+  }
+
   localStorage.removeItem('token');
   localStorage.removeItem('refresh_token');
 }
