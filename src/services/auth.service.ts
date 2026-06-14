@@ -1,6 +1,6 @@
 const KEYCLOAK_URL = import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8080';
-const REALM = import.meta.env.VITE_KEYCLOAK_REALM || 'escritorio-realm';
-const CLIENT_ID = import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'frontend-client';
+const REALM = import.meta.env.VITE_KEYCLOAK_REALM || 'escritorio-adv';
+const CLIENT_ID = import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'backend-api';
 
 export async function login(username: string, password: string): Promise<void> {
   const response = await fetch(
