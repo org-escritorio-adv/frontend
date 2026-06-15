@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, CalendarCheck, CalendarX, Scale, Search, X, CheckCircle2, ChevronDown, AlertTriangle, Loader2, Info, Clock4, Briefcase, Zap, Link2, XCircle } from 'lucide-react';
+import { Calendar, CalendarCheck, CalendarX, Scale, Search, X, CheckCircle2, ChevronDown, AlertTriangle, Loader2, Info, Clock4, Briefcase, Zap, Link2, XCircle, CalendarClock } from 'lucide-react';
 import { calcularDataPrazo, criarPrazo, PrazoCreate } from '../../services/prazos.service';
 import { buscarProcessos, ProcessoAPI } from '../../services/processos.service';
 
