@@ -1,10 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  X, CalendarClock, ChevronDown, AlertTriangle, CheckCircle2,
-  CalendarCheck, Info, Scale, Clock4, CalendarX,
-  BookmarkCheck, Zap, Search, Link2, Briefcase, XCircle, Loader2
-} from 'lucide-react';
-import { calcularDataPrazo } from '../../services/prazos.service';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { Calendar, CalendarCheck, CalendarX, Scale, Search, X, CheckCircle2, ChevronDown, AlertTriangle, Loader2, Info, Clock4, Briefcase, Zap, Link2, XCircle } from 'lucide-react';
+import { calcularDataPrazo, criarPrazo, PrazoCreate } from '../../services/prazos.service';
+import { buscarProcessos, ProcessoAPI } from '../../services/processos.service';
 
 // ─── Feriados ─────────────────────────────────────────────────────────────────
 
@@ -165,23 +163,8 @@ const fmtShort = (d: Date) =>
 
 // ─── Processos mock para autocomplete ────────────────────────────────────────
 
-interface ProcessoRef {
-  id: string;
-  numero: string;
-  parte: string;
-  tipo: string;
-  vara: string;
-}
-
-const PROCESSOS_MOCK: ProcessoRef[] = [
-  { id: 'p1', numero: '0001234-56.2024.8.26.0100', parte: 'Silva & Associados',        tipo: 'Cível',          vara: '3ª Vara Cível / DF'       },
-  { id: 'p2', numero: '0009876-12.2024.8.07.0001', parte: 'Costa Transporte Ltda.',    tipo: 'Trabalhista',    vara: '2ª Vara do Trabalho / DF'  },
-  { id: 'p3', numero: '0005432-78.2025.8.07.0001', parte: 'Ana Beatriz Oliveira',      tipo: 'Previdenciário', vara: 'JEF Federal — Brasília'     },
-  { id: 'p4', numero: '0001111-22.2024.8.07.0015', parte: 'Empresa XYZ Construções',   tipo: 'Tributário',     vara: '1ª Vara da Fazenda / DF'   },
-  { id: 'p5', numero: '0003333-44.2023.8.07.0001', parte: 'Fernanda Lima Santos',      tipo: 'Família',        vara: '1ª Vara de Família / DF'   },
-  { id: 'p6', numero: '0007890-33.2025.8.07.0003', parte: 'Rodrigo Mendes ME',         tipo: 'Cível',          vara: '5ª Vara Cível / DF'        },
-  { id: 'p7', numero: '0002468-99.2024.8.07.0002', parte: 'Hospital São Lucas S/A',    tipo: 'Consumidor',     vara: '2ª Vara Cível / DF'        },
-];
+// ─── Processos da API para autocomplete ───────────────────────────────────────
+// Removidos os mocks de processos para buscar do backend.
 
 const TIPO_COLORS: Record<string, string> = {
   Cível:          'bg-blue-100 text-blue-700',
@@ -220,15 +203,22 @@ export function PrazosCalculadoraModal({ isOpen, onClose }: PrazosCalculadoraMod
   const [apenasUteis,  setApenasUteis]  = useState(true);
   const [comFeriados,  setComFeriados]  = useState(true);
 
-  // ── autocomplete de processo ──────────────────────────────────────────────
+  const [processosApi, setProcessosApi] = useState<ProcessoAPI[]>([]);
   const [processoBusca,      setProcessoBusca]      = useState('');
-  const [processoSelecionado, setProcessoSelecionado] = useState<ProcessoRef | null>(null);
+  const [processoSelecionado, setProcessoSelecionado] = useState<ProcessoAPI | null>(null);
   const [dropdownAberto,     setDropdownAberto]     = useState(false);
   const autocompleteRef = useRef<HTMLDivElement>(null);
 
-  const processosFiltrados = PROCESSOS_MOCK.filter((p) => {
+  useEffect(() => {
+    if (isOpen) {
+      buscarProcessos().then(setProcessosApi).catch(console.error);
+    }
+  }, [isOpen]);
+
+  const processosFiltrados = processosApi.filter((p) => {
     const q = processoBusca.toLowerCase();
-    return p.numero.toLowerCase().includes(q) || p.parte.toLowerCase().includes(q) || p.tipo.toLowerCase().includes(q);
+    const partes = p.partes || '';
+    return p.numero_cnj.toLowerCase().includes(q) || partes.toLowerCase().includes(q) || p.tribunal.toLowerCase().includes(q);
   });
 
   // fecha dropdown ao clicar fora
@@ -242,7 +232,7 @@ export function PrazosCalculadoraModal({ isOpen, onClose }: PrazosCalculadoraMod
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  const selecionarProcesso = (p: ProcessoRef) => {
+  const selecionarProcesso = (p: ProcessoAPI) => {
     setProcessoSelecionado(p);
     setProcessoBusca('');
     setDropdownAberto(false);
@@ -292,7 +282,13 @@ export function PrazosCalculadoraModal({ isOpen, onClose }: PrazosCalculadoraMod
 
   useEffect(() => { recalcular(); }, [recalcular]);
   useEffect(() => {
-    if (isOpen) { setSalvo(false); setSalvando(false); }
+    if (isOpen) { 
+      setSalvo(false); 
+      setSalvando(false); 
+      setProcessoSelecionado(null);
+      setProcessoBusca('');
+      setErrorMsg('');
+    }
   }, [isOpen]);
 
   // ESC fecha
@@ -302,7 +298,11 @@ export function PrazosCalculadoraModal({ isOpen, onClose }: PrazosCalculadoraMod
     return () => document.removeEventListener('keydown', h);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  // Garante que o portal só renderize no lado cliente
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!isOpen || !mounted) return null;
 
   // ── nota de desconto ──────────────────────────────────────────────────────
   const gerarNota = () => {
@@ -324,13 +324,39 @@ export function PrazosCalculadoraModal({ isOpen, onClose }: PrazosCalculadoraMod
     ? { ring: 'border-amber-300 bg-amber-50', text: 'text-amber-600',   badge: 'bg-amber-100 text-amber-700', icon: <AlertTriangle className="w-4 h-4 text-amber-500" /> }
     : { ring: 'border-[#1A2B3C]/20 bg-[#1A2B3C]/5', text: 'text-[#1A2B3C]', badge: 'bg-[#1A2B3C]/10 text-[#1A2B3C]', icon: <CalendarCheck className="w-4 h-4 text-[#1A2B3C]" /> };
 
-  const handleSalvar = () => {
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const handleSalvar = async () => {
+    if (!processoSelecionado) {
+      setErrorMsg('Para salvar um prazo, selecione um processo na lista.');
+      return;
+    }
+    if (!resultado?.dataFatal) return;
+
+    setErrorMsg('');
     setSalvando(true);
-    setTimeout(() => { setSalvando(false); setSalvo(true); setTimeout(onClose, 900); }, 750);
+    
+    try {
+      const payload: PrazoCreate = {
+        titulo: `${tipoPrazo.label} - ${processoSelecionado.partes?.substring(0, 20) || 'Prazo'}`,
+        data_limite: resultado.dataFatal.toISOString(),
+        processo_id: processoSelecionado.id,
+      };
+      
+      await criarPrazo(payload);
+      
+      setSalvo(true); 
+      setTimeout(onClose, 900);
+    } catch (err) {
+      console.error(err);
+      setErrorMsg('Erro ao salvar prazo. Verifique a conexão com o servidor.');
+    } finally {
+      setSalvando(false);
+    }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-auto">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-[#1A2B3C]/40 backdrop-blur-[2px]"
@@ -375,9 +401,15 @@ export function PrazosCalculadoraModal({ isOpen, onClose }: PrazosCalculadoraMod
               <span className="flex items-center gap-1.5">
                 <Link2 className="w-3.5 h-3.5 text-[#D4AF37]" />
                 Vincular ao Processo
-                <span className="text-red-400">*</span>
               </span>
             </label>
+
+            {errorMsg && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                {errorMsg}
+              </div>
+            )}
 
             {/* Campo — estado: selecionado */}
             {processoSelecionado ? (
@@ -387,12 +419,12 @@ export function PrazosCalculadoraModal({ isOpen, onClose }: PrazosCalculadoraMod
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-[#1A2B3C] truncate font-mono tracking-tight">
-                    {processoSelecionado.numero}
+                    {processoSelecionado.numero_cnj}
                   </p>
-                  <p className="text-xs text-slate-500 truncate">{processoSelecionado.parte} · {processoSelecionado.vara}</p>
+                  <p className="text-xs text-slate-500 truncate">{processoSelecionado.partes || 'Sem partes'} · {processoSelecionado.tribunal}</p>
                 </div>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${TIPO_COLORS[processoSelecionado.tipo] ?? 'bg-slate-100 text-slate-600'}`}>
-                  {processoSelecionado.tipo}
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 bg-slate-100 text-slate-600 uppercase tracking-wider`}>
+                  {processoSelecionado.status}
                 </span>
                 <button
                   onClick={limparProcesso}
@@ -419,11 +451,10 @@ export function PrazosCalculadoraModal({ isOpen, onClose }: PrazosCalculadoraMod
               </div>
             )}
 
-            {/* Aviso de campo obrigatório */}
+            {/* Aviso de recomendação */}
             {!processoSelecionado && (
               <p className="text-[10px] text-slate-400 mt-1.5 flex items-center gap-1">
-                <span className="text-red-400">*</span>
-                Campo obrigatório para salvar o prazo no processo.
+                Selecione um processo para poder <strong className="text-slate-500">Salvar</strong> a data no sistema.
               </p>
             )}
 
@@ -443,7 +474,7 @@ export function PrazosCalculadoraModal({ isOpen, onClose }: PrazosCalculadoraMod
 
                 {/* Lista de resultados */}
                 <div className="max-h-[220px] overflow-y-auto divide-y divide-gray-50">
-                  {(processoBusca ? processosFiltrados : PROCESSOS_MOCK).map((p) => (
+                  {processosFiltrados.map((p) => (
                     <button
                       key={p.id}
                       onClick={() => selecionarProcesso(p)}
@@ -454,15 +485,12 @@ export function PrazosCalculadoraModal({ isOpen, onClose }: PrazosCalculadoraMod
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-[#1A2B3C] font-mono tracking-tight truncate">
-                          {highlightMatch(p.numero, processoBusca)}
+                          {highlightMatch(p.numero_cnj, processoBusca)}
                         </p>
                         <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-                          {highlightMatch(p.parte, processoBusca)} · {p.vara}
+                          {p.partes ? highlightMatch(p.partes, processoBusca) : 'Sem partes'} · {p.tribunal}
                         </p>
                       </div>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 mt-0.5 ${TIPO_COLORS[p.tipo] ?? 'bg-slate-100 text-slate-600'}`}>
-                        {p.tipo}
-                      </span>
                     </button>
                   ))}
                 </div>
