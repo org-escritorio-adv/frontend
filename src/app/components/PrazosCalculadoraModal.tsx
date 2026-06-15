@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   X, CalendarClock, ChevronDown, AlertTriangle, CheckCircle2,
   CalendarCheck, Info, Scale, Clock4, CalendarX,
-  BookmarkCheck, Zap, Search, Link2, Briefcase, XCircle,
+  BookmarkCheck, Zap, Search, Link2, Briefcase, XCircle, Loader2
 } from 'lucide-react';
+import { calcularDataPrazo } from '../../services/prazos.service';
 
 // ─── Feriados ─────────────────────────────────────────────────────────────────
 
@@ -254,6 +255,7 @@ export function PrazosCalculadoraModal({ isOpen, onClose }: PrazosCalculadoraMod
 
   // ── resultado calculado ───────────────────────────────────────────────────
   const [resultado, setResultado] = useState<Resultado | null>(null);
+  const [calculando, setCalculando] = useState(false);
 
   // ── salvamento ────────────────────────────────────────────────────────────
   const [salvando, setSalvando] = useState(false);
@@ -263,11 +265,29 @@ export function PrazosCalculadoraModal({ isOpen, onClose }: PrazosCalculadoraMod
   const diasEfetivos = tipoPrazo.id === 'personalizado' ? diasCustom : tipoPrazo.dias;
 
   // ── recalcula sempre que o formulário muda ────────────────────────────────
-  const recalcular = useCallback(() => {
+  const recalcular = useCallback(async () => {
     if (!dataBase) { setResultado(null); return; }
     const base = new Date(dataBase + 'T12:00:00');
     if (isNaN(base.getTime())) { setResultado(null); return; }
-    setResultado(calcular(base, diasEfetivos, apenasUteis, comFeriados));
+
+    setCalculando(true);
+    try {
+      const resLocal = calcular(base, diasEfetivos, apenasUteis, comFeriados);
+
+      if (apenasUteis && diasEfetivos > 0) {
+        const apiRes = await calcularDataPrazo(base.toISOString(), diasEfetivos);
+        const dataFinalBackend = new Date(apiRes.data_final);
+        resLocal.dataFatal = dataFinalBackend;
+        resLocal.diasCorridos = Math.round((dataFinalBackend.getTime() - base.getTime()) / 86_400_000);
+      }
+
+      setResultado(resLocal);
+    } catch (error) {
+      console.error("Erro ao calcular prazo na API:", error);
+      setResultado(calcular(base, diasEfetivos, apenasUteis, comFeriados));
+    } finally {
+      setCalculando(false);
+    }
   }, [dataBase, diasEfetivos, apenasUteis, comFeriados]);
 
   useEffect(() => { recalcular(); }, [recalcular]);
@@ -592,7 +612,12 @@ export function PrazosCalculadoraModal({ isOpen, onClose }: PrazosCalculadoraMod
           </div>
 
           {/* ── Card de Resultado ────────────────────────────────────── */}
-          {resultado && (
+          {calculando ? (
+            <div className="flex flex-col items-center justify-center py-10 rounded-2xl border-2 border-gray-100 bg-slate-50">
+              <Loader2 className="w-8 h-8 text-[#D4AF37] animate-spin mb-3" />
+              <p className="text-sm font-medium text-slate-500">Calculando prazo no servidor...</p>
+            </div>
+          ) : resultado && (
             <div className={`rounded-2xl border-2 p-5 transition-all ${corUrgencia.ring}`}>
 
               {/* Topo do card */}

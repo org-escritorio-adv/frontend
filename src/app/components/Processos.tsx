@@ -20,6 +20,7 @@ import {
   type ClienteAPI,
   type CriarProcessoPayload,
 } from "../../services/processos.service";
+import { NovoClienteModal } from "./NovoClienteModal";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -51,6 +52,7 @@ export function Processos({ onViewProcess }: Processos) {
 
   // Modal State
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [isNovoClienteModalOpen, setIsNovoClienteModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -476,7 +478,16 @@ export function Processos({ onViewProcess }: Processos) {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Cliente Vinculado</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Cliente Vinculado</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsNovoClienteModalOpen(true)}
+                    className="text-[10px] font-bold text-[#D4AF37] hover:underline"
+                  >
+                    + Novo Cliente
+                  </button>
+                </div>
                 <select
                   value={manualForm.cliente_id}
                   onChange={(e) => setManualForm({ ...manualForm, cliente_id: e.target.value })}
@@ -522,6 +533,15 @@ export function Processos({ onViewProcess }: Processos) {
           </form>
         </DialogContent>
       </Dialog>
+
+      <NovoClienteModal
+        isOpen={isNovoClienteModalOpen}
+        onClose={() => setIsNovoClienteModalOpen(false)}
+        onClienteCriado={async (c) => {
+          await fetchClientes(); // Refresh list
+          setManualForm({ ...manualForm, cliente_id: c.id.toString() }); // Auto select
+        }}
+      />
     </div>
   );
 }

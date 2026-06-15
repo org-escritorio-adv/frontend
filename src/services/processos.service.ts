@@ -45,7 +45,18 @@ export interface Processo {
   casoVinculado: string;
 }
 
+export interface ClienteCreate {
+  nome_razao_social: string;
+  cpf_cnpj: string;
+  autorizacao_busca: boolean;
+}
+
 // funções
+export async function criarCliente(dados: ClienteCreate): Promise<ClienteAPI> {
+  const response = await api.post("/clientes/", dados);
+  return response.data;
+}
+
 export async function buscarClientes(): Promise<ClienteAPI[]> {
   const response = await api.get("/clientes");
   const data = response.data;
