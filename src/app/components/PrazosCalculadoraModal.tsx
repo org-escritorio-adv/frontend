@@ -250,6 +250,7 @@ export function PrazosCalculadoraModal({ isOpen, onClose }: PrazosCalculadoraMod
   // ── salvamento ────────────────────────────────────────────────────────────
   const [salvando, setSalvando] = useState(false);
   const [salvo,    setSalvo]    = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const tipoPrazo = TIPOS_PRAZO.find((t) => t.id === tipoPrazoId) ?? TIPOS_PRAZO[0];
   const diasEfetivos = tipoPrazo.id === 'personalizado' ? diasCustom : tipoPrazo.dias;
@@ -323,8 +324,6 @@ export function PrazosCalculadoraModal({ isOpen, onClose }: PrazosCalculadoraMod
     : resultado?.urgente
     ? { ring: 'border-amber-300 bg-amber-50', text: 'text-amber-600',   badge: 'bg-amber-100 text-amber-700', icon: <AlertTriangle className="w-4 h-4 text-amber-500" /> }
     : { ring: 'border-[#1A2B3C]/20 bg-[#1A2B3C]/5', text: 'text-[#1A2B3C]', badge: 'bg-[#1A2B3C]/10 text-[#1A2B3C]', icon: <CalendarCheck className="w-4 h-4 text-[#1A2B3C]" /> };
-
-  const [errorMsg, setErrorMsg] = useState('');
 
   const handleSalvar = async () => {
     if (!processoSelecionado) {
