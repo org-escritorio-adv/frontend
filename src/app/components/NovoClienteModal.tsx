@@ -16,8 +16,6 @@ export function NovoClienteModal({ isOpen, onClose, onClienteCriado }: NovoClien
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  if (!isOpen) return null;
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nome.trim() || !cpfCnpj.trim()) {
@@ -57,7 +55,7 @@ export function NovoClienteModal({ isOpen, onClose, onClienteCriado }: NovoClien
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  if (!mounted) return null;
+  if (!isOpen || !mounted) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
