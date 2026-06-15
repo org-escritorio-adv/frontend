@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  Search, RefreshCw, Plus, Eye,
+  Search, RefreshCw, Plus, Eye, Download,
   Scale, Calendar, FileText, AlertCircle, Archive,
   Hash, Building2, Clock, ArrowUpRight,
 } from "lucide-react";
@@ -15,10 +15,12 @@ import {
   buscarClientes,
   buscarProcessos,
   criarProcesso,
+  exportarCsvProcessos,
   type Processo,
   type ClienteAPI,
   type CriarProcessoPayload,
 } from "../../services/processos.service";
+import { NovoClienteModal } from "./NovoClienteModal";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -50,6 +52,7 @@ export function Processos({ onViewProcess }: Processos) {
 
   // Modal State
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [isNovoClienteModalOpen, setIsNovoClienteModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -170,6 +173,20 @@ export function Processos({ onViewProcess }: Processos) {
     setTimeout(() => setSyncing(false), 2200);
   };
 
+  const [exporting, setExporting] = useState(false);
+  const handleExportCsv = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await exportarCsvProcessos();
+    } catch (error) {
+      console.error("Erro ao exportar CSV:", error);
+      alert("Erro ao tentar baixar o arquivo CSV.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-slate-50">
 
@@ -185,6 +202,15 @@ export function Processos({ onViewProcess }: Processos) {
 
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
+              onClick={handleExportCsv}
+              disabled={exporting}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 text-sm text-[#D4AF37] bg-white hover:bg-slate-50 hover:border-slate-300 transition-all disabled:opacity-60"
+            >
+              <Download className={`w-4 h-4 ${exporting ? "animate-pulse" : ""}`} />
+              {exporting ? "Baixando..." : "Exportar CSV"}
+            </button>
+
+            <button
               onClick={handleSync}
               disabled={syncing}
               className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-600 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all disabled:opacity-60"
@@ -194,8 +220,16 @@ export function Processos({ onViewProcess }: Processos) {
             </button>
 
             <button
+              onClick={() => setIsNovoClienteModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 text-sm text-[#1A2B3C] bg-white hover:bg-slate-50 hover:border-slate-300 transition-all font-medium"
+            >
+              <Building2 className="w-4 h-4" />
+              Novo Cliente
+            </button>
+
+            <button
               onClick={() => setIsManualModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#1A2B3C] text-sm text-white hover:bg-[#243447] transition-colors shadow-sm"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#1A2B3C] text-sm text-white hover:bg-[#243447] transition-colors shadow-sm font-medium"
             >
               <Plus className="w-4 h-4" />
               Processo Manual
@@ -366,8 +400,16 @@ export function Processos({ onViewProcess }: Processos) {
       </div>
 
       {/* ─── MODAL DE CADASTRO MANUAL ─── */}
-      <Dialog open={isManualModalOpen} onOpenChange={setIsManualModalOpen}>
-        <DialogContent className="sm:max-w-[480px] bg-white border border-slate-100 rounded-xl p-6">
+      <Dialog open={isManualModalOpen} onOpenChange={(open) => {
+        if (!open && isNovoClienteModalOpen) return;
+        setIsManualModalOpen(open);
+      }}>
+        <DialogContent 
+          className="sm:max-w-[480px] bg-white border border-slate-100 rounded-xl p-6"
+          onInteractOutside={(e) => {
+            if (isNovoClienteModalOpen) e.preventDefault();
+          }}
+        >
           <DialogHeader>
             <DialogTitle className="text-lg font-semibold text-[#1A2B3C]">
               Cadastrar Processo Manualmente
@@ -498,6 +540,15 @@ export function Processos({ onViewProcess }: Processos) {
           </form>
         </DialogContent>
       </Dialog>
+
+      <NovoClienteModal
+        isOpen={isNovoClienteModalOpen}
+        onClose={() => setIsNovoClienteModalOpen(false)}
+        onClienteCriado={async (c) => {
+          await fetchClientes(); // Refresh list
+          setManualForm({ ...manualForm, cliente_id: c.id.toString() }); // Auto select
+        }}
+      />
     </div>
   );
 }

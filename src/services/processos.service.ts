@@ -11,7 +11,7 @@ interface MovimentacaoAPI {
   descricao: string;
 }
 
-interface ProcessoAPI {
+export interface ProcessoAPI {
   id: number;
   numero_cnj: string;
   tribunal: string;
@@ -19,6 +19,11 @@ interface ProcessoAPI {
   status: string;
   cliente_id: number | null;
   movimentacoes: MovimentacaoAPI[];
+}
+
+export async function buscarProcessosRaw(): Promise<ProcessoAPI[]> {
+  const response = await api.get("/processos");
+  return response.data;
 }
 
 export interface CriarProcessoPayload {
@@ -45,7 +50,18 @@ export interface Processo {
   casoVinculado: string;
 }
 
+export interface ClienteCreate {
+  nome_razao_social: string;
+  cpf_cnpj: string;
+  autorizacao_busca: boolean;
+}
+
 // funções
+export async function criarCliente(dados: ClienteCreate): Promise<ClienteAPI> {
+  const response = await api.post("/clientes/", dados);
+  return response.data;
+}
+
 export async function buscarClientes(): Promise<ClienteAPI[]> {
   const response = await api.get("/clientes");
   const data = response.data;
@@ -104,6 +120,24 @@ export async function exportarPdfProcesso(processoId: string): Promise<void> {
   const link = document.createElement("a");
   link.href = url;
   link.setAttribute("download", `Processo_${processoId}.pdf`);
+  document.body.appendChild(link);
+  link.click();
+  
+  link.parentNode?.removeChild(link);
+  window.URL.revokeObjectURL(url);
+}
+
+export async function exportarCsvProcessos(): Promise<void> {
+  const response = await api.get("/processos/exportar-csv", {
+    responseType: "blob",
+  });
+  
+  const blob = new Blob([response.data], { type: "text/csv" });
+  const url = window.URL.createObjectURL(blob);
+  
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", "processos.csv");
   document.body.appendChild(link);
   link.click();
   

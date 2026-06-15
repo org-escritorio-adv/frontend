@@ -6,6 +6,8 @@ import {
   AlertCircle, Edit3, ArrowRight, Hash, MapPin, Download,
   Send, History,
 } from "lucide-react";
+import { exportarCsvProcessos } from "../../services/processos.service";
+import { buscarTarefas, TarefaAPI } from "../../services/tarefas.service";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -80,368 +82,28 @@ const initialColumns: KanbanColumn[] = [
     title: "Backlog",
     dotColor: "bg-slate-400",
     headerBg: "bg-slate-100",
-    cards: [
-      {
-        id: "b1",
-        title: "Elaboração de Contrato Social – Fusão Alpha Corp.",
-        priority: "Alta",
-        tags: ["Contratos"],
-        attachments: 3,
-        comments: 2,
-        assignee: "CS",
-        assigneeColor: "bg-blue-500",
-        assigneeFullName: "Dr. Carlos Silva",
-        assigneeRole: "Sócio Fundador",
-        phone: "(61) 98765-4321",
-        email: "carlos.silva@lexflow.com.br",
-        dueDate: "15/05/2026",
-        processNumber: "0001234-56.2024.8.07.0001",
-        court: "TJDFT",
-        vara: "1ª Vara Empresarial de Brasília",
-        description: "Análise e revisão de cláusulas contratuais referentes à fusão societária entre a Empresa Alpha Corp. e a Empresa Beta Ltda. Inclui due diligence completa e elaboração de parecer jurídico.",
-        hearingDate: "28/05/2026",
-        history: [
-          { id: "h1", type: "criado", descricao: "Processo cadastrado no sistema", data: "10/04/2026", autor: "Dr. Carlos Silva" },
-          { id: "h2", type: "documento", descricao: "Documentos contratuais recebidos do cliente", data: "15/04/2026", autor: "Dr. Carlos Silva" },
-          { id: "h3", type: "atualizado", descricao: "Prioridade alterada para Alta", data: "22/04/2026", autor: "Sistema" },
-        ],
-      },
-      {
-        id: "b2",
-        title: "Consultoria Trabalhista – Rescisão Contrato João Santos",
-        priority: "Média",
-        tags: ["Trabalhista"],
-        attachments: 1,
-        comments: 5,
-        assignee: "AC",
-        assigneeColor: "bg-purple-500",
-        assigneeFullName: "Dra. Ana Costa",
-        assigneeRole: "Advogada Trabalhista",
-        phone: "(61) 99123-5678",
-        email: "ana.costa@lexflow.com.br",
-        dueDate: "20/05/2026",
-        processNumber: "0007890-12.2024.5.10.0001",
-        court: "TRT 10ª Região",
-        vara: "2ª Vara do Trabalho de Brasília",
-        description: "Ação trabalhista movida pelo reclamante João Santos por verbas rescisórias não pagas. O reclamante alega justa causa indevida e solicita indenização por danos morais.",
-        history: [
-          { id: "h1", type: "criado", descricao: "Processo cadastrado", data: "12/04/2026", autor: "Dra. Ana Costa" },
-          { id: "h2", type: "documento", descricao: "Contestação protocolada", data: "18/04/2026", autor: "Dra. Ana Costa" },
-        ],
-      },
-      {
-        id: "b3",
-        title: "Due Diligence Imobiliária – Ativo Comercial Brasília",
-        priority: "Baixa",
-        tags: ["Imobiliário"],
-        attachments: 6,
-        comments: 1,
-        assignee: "RA",
-        assigneeColor: "bg-emerald-500",
-        assigneeFullName: "Dr. Roberto Alves",
-        assigneeRole: "Advogado Empresarial",
-        phone: "(61) 98234-9012",
-        email: "roberto.alves@lexflow.com.br",
-        dueDate: "01/06/2026",
-        processNumber: "0005678-90.2024.8.07.0003",
-        court: "TJDFT",
-        vara: "3ª Vara Cível de Brasília",
-        description: "Due diligence completa do ativo imobiliário localizado na Av. Paulista, São Paulo. Análise de escrituras, matrículas, certidões de ônus e conformidade fiscal.",
-        history: [
-          { id: "h1", type: "criado", descricao: "Processo cadastrado", data: "05/04/2026", autor: "Dr. Roberto Alves" },
-        ],
-      },
-      {
-        id: "b4",
-        title: "Recurso Administrativo – Licitação 0045/2024",
-        priority: "Alta",
-        tags: ["Recurso"],
-        attachments: 2,
-        comments: 4,
-        assignee: "ML",
-        assigneeColor: "bg-orange-500",
-        assigneeFullName: "Dra. Marina Lima",
-        assigneeRole: "Advogada Sênior",
-        phone: "(61) 97654-3210",
-        email: "marina.lima@lexflow.com.br",
-        dueDate: "10/05/2026",
-        processNumber: "0009012-34.2024.8.07.0002",
-        court: "TJDFT",
-        vara: "2ª Turma Cível do TJDFT",
-        description: "Recurso de apelação em face de sentença desfavorável de primeira instância. Foco em reforma da decisão quanto aos danos materiais e morais pleiteados.",
-        hearingDate: "10/05/2026",
-        history: [
-          { id: "h1", type: "criado", descricao: "Recurso interposto", data: "01/04/2026", autor: "Dra. Marina Lima" },
-          { id: "h2", type: "documento", descricao: "Razões de recurso protocoladas", data: "08/04/2026", autor: "Dra. Marina Lima" },
-          { id: "h3", type: "audiencia", descricao: "Sessão de julgamento agendada", data: "20/04/2026", autor: "Sistema" },
-        ],
-      },
-      {
-        id: "b5",
-        title: "Renovação de Contrato de Prestação de Serviços",
-        priority: "Média",
-        tags: ["Contratos"],
-        attachments: 0,
-        comments: 3,
-        assignee: "CS",
-        assigneeColor: "bg-blue-500",
-        assigneeFullName: "Dr. Carlos Silva",
-        assigneeRole: "Sócio Fundador",
-        phone: "(61) 98765-4321",
-        email: "carlos.silva@lexflow.com.br",
-        dueDate: "25/05/2026",
-        processNumber: "0003456-78.2024.8.07.0004",
-        court: "TJDFT",
-        vara: "4ª Vara Cível de Brasília",
-        description: "Revisão e renovação do contrato de prestação de serviços jurídicos com cliente recorrente. Atualização de honorários e cláusulas de confidencialidade.",
-        history: [
-          { id: "h1", type: "criado", descricao: "Processo cadastrado", data: "14/04/2026", autor: "Dr. Carlos Silva" },
-        ],
-      },
-    ],
+    cards: [],
   },
   {
     id: "em-execucao",
     title: "Em Execução",
     dotColor: "bg-blue-500",
     headerBg: "bg-blue-50",
-    cards: [
-      {
-        id: "e1",
-        title: "Ação Trabalhista – Cliente João Santos",
-        priority: "Alta",
-        tags: ["Trabalhista"],
-        attachments: 4,
-        comments: 7,
-        assignee: "RA",
-        assigneeColor: "bg-emerald-500",
-        assigneeFullName: "Dr. Roberto Alves",
-        assigneeRole: "Advogado Trabalhista Sênior",
-        phone: "(61) 98234-9012",
-        email: "roberto.alves@lexflow.com.br",
-        dueDate: "08/05/2026",
-        processNumber: "0098-45.2024.5.10.0001",
-        court: "TRT 10ª Região",
-        vara: "3ª Vara do Trabalho de Brasília",
-        description: "Defesa do reclamado em ação trabalhista por rescisão indireta. O reclamante alega falta de pagamento de salários por 3 meses consecutivos e solicita indenização por danos morais e materiais.",
-        hearingDate: "22/05/2026",
-        history: [
-          { id: "h1", type: "criado", descricao: "Processo cadastrado no sistema", data: "02/04/2026", autor: "Dr. Roberto Alves" },
-          { id: "h2", type: "documento", descricao: "Documentos de defesa protocolados", data: "15/04/2026", autor: "Dr. Roberto Alves" },
-          { id: "h3", type: "audiencia", descricao: "Audiência de instrução agendada para 22/05", data: "25/04/2026", autor: "Sistema" },
-          { id: "h4", type: "atualizado", descricao: "Status movido para Em Execução", data: "01/05/2026", autor: "Dr. Roberto Alves" },
-        ],
-      },
-      {
-        id: "e2",
-        title: "Negociação de Acordo Extrajudicial – Empresa Beta S.A.",
-        priority: "Média",
-        tags: ["Acordos"],
-        attachments: 2,
-        comments: 3,
-        assignee: "CS",
-        assigneeColor: "bg-blue-500",
-        assigneeFullName: "Dr. Carlos Silva",
-        assigneeRole: "Sócio Fundador",
-        phone: "(61) 98765-4321",
-        email: "carlos.silva@lexflow.com.br",
-        dueDate: "12/05/2026",
-        processNumber: "0045678-23.2024.8.07.0005",
-        court: "TJDFT",
-        vara: "5ª Vara Cível de Brasília",
-        description: "Condução de negociação extrajudicial para resolução de conflito societário entre partes. Elaboração de minuta de acordo e acompanhamento das tratativas.",
-        hearingDate: "22/05/2026",
-        history: [
-          { id: "h1", type: "criado", descricao: "Caso aberto para negociação", data: "08/04/2026", autor: "Dr. Carlos Silva" },
-          { id: "h2", type: "atualizado", descricao: "Proposta de acordo enviada à contraparte", data: "20/04/2026", autor: "Dr. Carlos Silva" },
-          { id: "h3", type: "documento", descricao: "Contraproposta recebida e analisada", data: "28/04/2026", autor: "Dr. Carlos Silva" },
-        ],
-      },
-      {
-        id: "e3",
-        title: "Consultoria LGPD – Empresa Digital Tech Ltda.",
-        priority: "Alta",
-        tags: ["Petição"],
-        attachments: 1,
-        comments: 2,
-        assignee: "AC",
-        assigneeColor: "bg-purple-500",
-        assigneeFullName: "Dra. Ana Costa",
-        assigneeRole: "Advogada Trabalhista",
-        phone: "(61) 99123-5678",
-        email: "ana.costa@lexflow.com.br",
-        dueDate: "07/05/2026",
-        processNumber: "0012345-67.2024.5.10.0006",
-        court: "TRT 10ª Região",
-        vara: "1ª Vara do Trabalho de Brasília",
-        description: "Redação e protocolo de petição inicial em ação de cobrança de verbas trabalhistas. Cliente reclama pagamento de horas extras e 13º salário do período 2022–2024.",
-        history: [
-          { id: "h1", type: "criado", descricao: "Mandato assinado pelo cliente", data: "10/04/2026", autor: "Dra. Ana Costa" },
-          { id: "h2", type: "documento", descricao: "Documentos trabalhistas coletados", data: "18/04/2026", autor: "Dra. Ana Costa" },
-        ],
-      },
-    ],
+    cards: [],
   },
   {
     id: "revisao",
     title: "Revisão",
     dotColor: "bg-amber-500",
     headerBg: "bg-amber-50",
-    cards: [
-      {
-        id: "r1",
-        title: "Revisão de Estatuto Social – Reestruturação Societária",
-        priority: "Média",
-        tags: ["Contratos"],
-        attachments: 5,
-        comments: 8,
-        assignee: "ML",
-        assigneeColor: "bg-orange-500",
-        assigneeFullName: "Dra. Marina Lima",
-        assigneeRole: "Advogada Sênior",
-        phone: "(61) 97654-3210",
-        email: "marina.lima@lexflow.com.br",
-        dueDate: "06/05/2026",
-        processNumber: "0034567-89.2024.8.07.0007",
-        court: "TJDFT",
-        vara: "6ª Vara Empresarial de Brasília",
-        description: "Revisão completa de contrato social de empresa em fase de reestruturação. Análise de participação acionária, cláusulas de saída e direitos preferenciais.",
-        history: [
-          { id: "h1", type: "criado", descricao: "Processo iniciado", data: "01/04/2026", autor: "Dra. Marina Lima" },
-          { id: "h2", type: "documento", descricao: "Contrato social versão preliminar entregue", data: "12/04/2026", autor: "Dra. Marina Lima" },
-          { id: "h3", type: "atualizado", descricao: "Revisão interna concluída, aguardando aprovação", data: "25/04/2026", autor: "Dra. Marina Lima" },
-        ],
-      },
-      {
-        id: "r2",
-        title: "Parecer Tributário – Enquadramento Fiscal Tech Ltda.",
-        priority: "Baixa",
-        tags: ["Tributário"],
-        attachments: 2,
-        comments: 1,
-        assignee: "CS",
-        assigneeColor: "bg-blue-500",
-        assigneeFullName: "Dr. Carlos Silva",
-        assigneeRole: "Sócio Fundador",
-        phone: "(61) 98765-4321",
-        email: "carlos.silva@lexflow.com.br",
-        dueDate: "09/05/2026",
-        processNumber: "0056789-01.2024.8.07.0008",
-        court: "TJDFT",
-        vara: "Vara Tributária de Brasília",
-        description: "Elaboração de parecer jurídico sobre enquadramento tributário de empresa do setor de tecnologia. Análise de benefícios fiscais e riscos de autuação.",
-        history: [
-          { id: "h1", type: "criado", descricao: "Solicitação de parecer recebida", data: "15/04/2026", autor: "Dr. Carlos Silva" },
-          { id: "h2", type: "documento", descricao: "Documentos fiscais analisados", data: "22/04/2026", autor: "Dr. Carlos Silva" },
-        ],
-      },
-    ],
+    cards: [],
   },
   {
     id: "finalizado",
     title: "Finalizado",
     dotColor: "bg-emerald-500",
     headerBg: "bg-emerald-50",
-    cards: [
-      {
-        id: "f1",
-        title: "Homologação de Acordo Trabalhista – Caso 0076/2023",
-        priority: "Alta",
-        tags: ["Trabalhista"],
-        attachments: 3,
-        comments: 5,
-        assignee: "AC",
-        assigneeColor: "bg-purple-500",
-        assigneeFullName: "Dra. Ana Costa",
-        assigneeRole: "Advogada Trabalhista",
-        phone: "(61) 99123-5678",
-        email: "ana.costa@lexflow.com.br",
-        dueDate: "02/05/2026",
-        processNumber: "0076-34.2023.5.10.0009",
-        court: "TRT 10ª Região",
-        vara: "2ª Vara do Trabalho de Brasília",
-        description: "Acordo trabalhista homologado com sucesso. Processo encerrado com pagamento de todas as verbas rescisórias e indenizações acordadas.",
-        history: [
-          { id: "h1", type: "criado", descricao: "Processo cadastrado", data: "10/01/2026", autor: "Dra. Ana Costa" },
-          { id: "h2", type: "audiencia", descricao: "Audiência de conciliação realizada", data: "15/03/2026", autor: "Dra. Ana Costa" },
-          { id: "h3", type: "decisao", descricao: "Acordo homologado pelo juiz", data: "28/04/2026", autor: "Sistema" },
-          { id: "h4", type: "atualizado", descricao: "Processo concluído e arquivado", data: "02/05/2026", autor: "Dra. Ana Costa" },
-        ],
-      },
-      {
-        id: "f2",
-        title: "Registro de marca comercial – Grupo Alfa",
-        priority: "Baixa",
-        tags: ["Propriedade Intelectual"],
-        attachments: 1,
-        comments: 2,
-        assignee: "RA",
-        assigneeColor: "bg-emerald-500",
-        assigneeFullName: "Dr. Roberto Alves",
-        assigneeRole: "Advogado Empresarial",
-        phone: "(61) 98234-9012",
-        email: "roberto.alves@lexflow.com.br",
-        dueDate: "01/05/2026",
-        processNumber: "0089012-45.2023.8.07.0010",
-        court: "TJDFT",
-        vara: "Vara de Propriedade Intelectual",
-        description: "Registro de marca comercial concluído junto ao INPI. Certificado de registro emitido e entregue ao cliente.",
-        history: [
-          { id: "h1", type: "criado", descricao: "Pedido de registro protocolado no INPI", data: "05/01/2026", autor: "Dr. Roberto Alves" },
-          { id: "h2", type: "decisao", descricao: "Marca deferida pelo INPI", data: "20/04/2026", autor: "Sistema" },
-          { id: "h3", type: "atualizado", descricao: "Certificado entregue ao cliente", data: "01/05/2026", autor: "Dr. Roberto Alves" },
-        ],
-      },
-      {
-        id: "f3",
-        title: "Assessoria Jurídica em Licitação Pública – Pregão 05/2024",
-        priority: "Média",
-        tags: ["Licitação"],
-        attachments: 4,
-        comments: 6,
-        assignee: "CS",
-        assigneeColor: "bg-blue-500",
-        assigneeFullName: "Dr. Carlos Silva",
-        assigneeRole: "Sócio Fundador",
-        phone: "(61) 98765-4321",
-        email: "carlos.silva@lexflow.com.br",
-        dueDate: "28/04/2026",
-        processNumber: "0011234-56.2024.8.07.0011",
-        court: "TJDFT",
-        vara: "Vara de Direito Público de Brasília",
-        description: "Assessoria jurídica completa no processo licitatório – Pregão Eletrônico nº 05/2024. Elaboração de impugnação e recursos administrativos.",
-        history: [
-          { id: "h1", type: "criado", descricao: "Mandato de assessoria assinado", data: "15/01/2026", autor: "Dr. Carlos Silva" },
-          { id: "h2", type: "documento", descricao: "Impugnação ao edital protocolada", data: "10/03/2026", autor: "Dr. Carlos Silva" },
-          { id: "h3", type: "decisao", descricao: "Recurso administrativo julgado procedente", data: "15/04/2026", autor: "Sistema" },
-          { id: "h4", type: "atualizado", descricao: "Processo encerrado com êxito", data: "28/04/2026", autor: "Dr. Carlos Silva" },
-        ],
-      },
-      {
-        id: "f4",
-        title: "Distrato contratual – Cliente XYZ Ltda.",
-        priority: "Alta",
-        tags: ["Contratos"],
-        attachments: 2,
-        comments: 3,
-        assignee: "ML",
-        assigneeColor: "bg-orange-500",
-        assigneeFullName: "Dra. Marina Lima",
-        assigneeRole: "Advogada Sênior",
-        phone: "(61) 97654-3210",
-        email: "marina.lima@lexflow.com.br",
-        dueDate: "25/04/2026",
-        processNumber: "0023456-78.2024.8.07.0012",
-        court: "TJDFT",
-        vara: "7ª Vara Cível de Brasília",
-        description: "Elaboração e assinatura de distrato contratual entre as partes. Todas as obrigações rescisórias foram cumpridas sem litígio judicial.",
-        history: [
-          { id: "h1", type: "criado", descricao: "Solicitação de distrato recebida", data: "01/03/2026", autor: "Dra. Marina Lima" },
-          { id: "h2", type: "documento", descricao: "Minuta de distrato elaborada", data: "15/03/2026", autor: "Dra. Marina Lima" },
-          { id: "h3", type: "atualizado", descricao: "Distrato assinado por ambas as partes", data: "25/04/2026", autor: "Sistema" },
-        ],
-      },
-    ],
+    cards: [],
   },
 ];
 
@@ -924,6 +586,47 @@ export function KanbanBoard({ initialExpandedId, onClearExpandedId }: KanbanBoar
     if (initialExpandedId) setExpandedCardId(initialExpandedId);
   }, [initialExpandedId]);
 
+  /* Load Tarefas from Backend */
+  useEffect(() => {
+    const loadTarefas = async () => {
+      try {
+        const tarefas = await buscarTarefas();
+        setColumns(prev => prev.map(col => {
+          let filtered: TarefaAPI[] = [];
+          if (col.id === "backlog") filtered = tarefas.filter(t => t.status === "aberta");
+          else if (col.id === "em-execucao") filtered = tarefas.filter(t => t.status === "em_andamento");
+          else if (col.id === "revisao") filtered = tarefas.filter(t => t.status === "revisao");
+          else if (col.id === "finalizado") filtered = tarefas.filter(t => t.status === "concluida");
+
+          const cards: KanbanCard[] = filtered.map(t => ({
+            id: String(t.id),
+            title: t.titulo,
+            priority: "Média",
+            tags: ["Prazo"],
+            attachments: 0,
+            comments: 0,
+            assignee: "S",
+            assigneeColor: "bg-[#1A2B3C]",
+            assigneeFullName: "Sistema",
+            assigneeRole: "Automático",
+            phone: "",
+            email: "",
+            dueDate: t.created_at ? new Date(t.created_at).toLocaleDateString("pt-BR") : "",
+            processNumber: t.processo_id ? String(t.processo_id) : "N/A",
+            court: "Ver detalhes",
+            vara: "",
+            description: t.descricao || "",
+            history: []
+          }));
+          return { ...col, cards };
+        }));
+      } catch (err) {
+        console.error("Erro ao buscar tarefas", err);
+      }
+    };
+    loadTarefas();
+  }, []);
+
   const totalCards = columns.reduce((acc, col) => acc + col.cards.length, 0);
 
   const findCard = (id: string): { card: KanbanCard; columnTitle: string } | null => {
@@ -974,6 +677,20 @@ export function KanbanBoard({ initialExpandedId, onClearExpandedId }: KanbanBoar
 
   const expandedData = expandedCardId ? findCard(expandedCardId) : null;
 
+  const [exporting, setExporting] = useState(false);
+  const handleExportCsv = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await exportarCsvProcessos();
+    } catch (error) {
+      console.error("Erro ao exportar CSV:", error);
+      alert("Erro ao tentar baixar o arquivo CSV.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-[#f4f5f7] overflow-hidden">
       {/* ── Page header ───────────────────────────────── */}
@@ -993,6 +710,18 @@ export function KanbanBoard({ initialExpandedId, onClearExpandedId }: KanbanBoar
             <SlidersHorizontal className="w-3.5 h-3.5" />
             Ordenar
           </button>
+          
+          <div className="h-6 w-px bg-slate-200 mx-1" />
+
+          <button
+            onClick={handleExportCsv}
+            disabled={exporting}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[#D4AF37] text-sm border border-slate-200 rounded-lg bg-white hover:bg-slate-50 hover:border-slate-300 transition-colors font-medium disabled:opacity-60"
+          >
+            <Download className={`w-3.5 h-3.5 ${exporting ? "animate-pulse" : ""}`} />
+            {exporting ? "Baixando..." : "Exportar CSV"}
+          </button>
+
           <button
             onClick={() => setAddingInColumn("backlog")}
             className="flex items-center gap-1.5 px-4 py-1.5 bg-[#1A2B3C] text-white text-sm rounded-lg hover:bg-[#243447] transition-colors font-medium"
