@@ -220,8 +220,16 @@ export function Processos({ onViewProcess }: Processos) {
             </button>
 
             <button
+              onClick={() => setIsNovoClienteModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 text-sm text-[#1A2B3C] bg-white hover:bg-slate-50 hover:border-slate-300 transition-all font-medium"
+            >
+              <Building2 className="w-4 h-4" />
+              Novo Cliente
+            </button>
+
+            <button
               onClick={() => setIsManualModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#1A2B3C] text-sm text-white hover:bg-[#243447] transition-colors shadow-sm"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#1A2B3C] text-sm text-white hover:bg-[#243447] transition-colors shadow-sm font-medium"
             >
               <Plus className="w-4 h-4" />
               Processo Manual
@@ -486,16 +494,7 @@ export function Processos({ onViewProcess }: Processos) {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Cliente Vinculado</label>
-                  <button
-                    type="button"
-                    onClick={() => setIsNovoClienteModalOpen(true)}
-                    className="text-[10px] font-bold text-[#D4AF37] hover:underline"
-                  >
-                    + Novo Cliente
-                  </button>
-                </div>
+                <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Cliente Vinculado</label>
                 <select
                   value={manualForm.cliente_id}
                   onChange={(e) => setManualForm({ ...manualForm, cliente_id: e.target.value })}
