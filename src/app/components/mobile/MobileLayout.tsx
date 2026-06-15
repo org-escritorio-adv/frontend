@@ -1,5 +1,5 @@
 import { Outlet, useLocation, Link } from "react-router";
-import { LayoutDashboard, Briefcase, Scale, Search, FileText, Users, Settings } from "lucide-react";
+import { LayoutDashboard, Briefcase, Scale, Search, FileText, Users, Settings, UserRound } from "lucide-react";
 import { MobileTopBar } from "./MobileTopBar";
 import { routePaths } from "../../routeConfig";
 
@@ -12,6 +12,7 @@ export function MobileLayout() {
     { path: routePaths.appProcessos,  icon: Scale,           label: "Processos"  },
     { path: routePaths.appPesquisa,   icon: Search,          label: "Pesquisa"   },
     { path: routePaths.appCMS,        icon: FileText,        label: "CMS"        },
+    { path: routePaths.appClientes,   icon: UserRound,       label: "Clientes"   },
     { path: routePaths.appEquipe,     icon: Users,           label: "Equipe"     },
     { path: routePaths.appAjustes,    icon: Settings,        label: "Ajustes"    },
   ];

@@ -17,7 +17,8 @@ export function LoginPage() {
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      navigate(routePaths.dashboard);
+      const isMobile = window.matchMedia("(max-width: 768px)").matches;
+      navigate(isMobile ? routePaths.app : routePaths.dashboard);
     }, 900);
   };
 

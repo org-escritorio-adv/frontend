@@ -12,22 +12,9 @@ import { CMSMobile } from "./components/mobile/CMSMobile";
 import { EquipeMobile } from "./components/mobile/EquipeMobile";
 import { AjustesMobile } from "./components/mobile/AjustesMobile";
 import { CaseDetailsMobile } from "./components/mobile/CaseDetailsMobile";
-import { useIsMobile } from "./hooks/useIsMobile";
+import { ClientesMobile } from "./components/mobile/ClientesMobile";
+import { ClienteDetailsMobile } from "./components/mobile/ClienteDetailsMobile";
 import { routePaths } from "./routeConfig";
-
-
-function DashboardGate() {
-  const isMobile = useIsMobile();
-  if (isMobile) return <Navigate to={routePaths.app} replace />;
-  return <DashboardShell />;
-}
-
-
-function MobileGate() {
-  const isMobile = useIsMobile();
-  if (!isMobile) return <Navigate to={routePaths.dashboard} replace />;
-  return <MobileLayout />;
-}
 
 function LegacyCaseRedirect() {
   const { caseId } = useParams();
@@ -53,12 +40,12 @@ export const router = createBrowserRouter([
   },
   {
     path: routePaths.dashboard,
-    Component: DashboardGate,
+    Component: DashboardShell,
   },
 
   {
     path: routePaths.app,
-    Component: MobileGate,   
+    Component: MobileLayout,
     children: [
       { index: true,              Component: DashboardMobile   },
       { path: "casos",            Component: KanbanMobile      },
@@ -67,7 +54,9 @@ export const router = createBrowserRouter([
       { path: "cms",              Component: CMSMobile         },
       { path: "equipe",           Component: EquipeMobile      },
       { path: "ajustes",          Component: AjustesMobile     },
-      { path: "caso/:caseId",     Component: CaseDetailsMobile },
+      { path: "caso/:caseId",      Component: CaseDetailsMobile    },
+      { path: "clientes",          Component: ClientesMobile       },
+      { path: "cliente/:clienteId", Component: ClienteDetailsMobile },
     ],
   },
 

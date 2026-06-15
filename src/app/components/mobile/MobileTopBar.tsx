@@ -6,7 +6,7 @@ import {
   Calendar, AlertTriangle, CheckCircle2, UserPlus,
   UserCircle, SlidersHorizontal, Check,
 } from "lucide-react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { AppLogo } from "../AppLogo";
 import { routePaths } from "../../routeConfig";
 
@@ -82,6 +82,11 @@ export function MobileTopBar() {
   const unreadCount = notifications.filter((n) => n.unread).length;
 
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    navigate(routePaths.login);
+  };
 
   const navItems = [
     { path: routePaths.app,         icon: LayoutDashboard, label: "Dashboard"  },
@@ -289,7 +294,7 @@ export function MobileTopBar() {
           <div className="h-px bg-slate-100 mx-4 my-1" />
 
           <button
-            onClick={closeAll}
+            onClick={() => { closeAll(); handleLogout(); }}
             className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-50 active:bg-red-100 transition-colors"
           >
             <LogOut className="w-4 h-4 flex-shrink-0" />
@@ -394,7 +399,10 @@ export function MobileTopBar() {
 
         {/* Rodapé do drawer */}
         <div className="flex-shrink-0 px-3 pt-3 pb-10 border-t border-slate-100">
-          <button className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl text-red-500 hover:bg-red-50 transition-colors">
+          <button
+            onClick={() => { setDrawerOpen(false); handleLogout(); }}
+            className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl text-red-500 hover:bg-red-50 transition-colors"
+          >
             <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
               <LogOut className="w-4 h-4 text-red-500" />
             </div>
@@ -402,6 +410,7 @@ export function MobileTopBar() {
           </button>
         </div>
       </aside>
+
     </>
   );
 }
