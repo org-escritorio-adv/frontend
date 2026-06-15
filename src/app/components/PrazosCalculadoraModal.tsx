@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, CalendarCheck, CalendarX, Scale, Search, X, CheckCircle2, ChevronDown, AlertTriangle, Loader2, Info, Clock4, Briefcase, Zap, Link2, XCircle, CalendarClock } from 'lucide-react';
+import { Calendar, CalendarCheck, CalendarX, Scale, Search, X, CheckCircle2, ChevronDown, AlertTriangle, Loader2, Info, Clock4, Briefcase, Zap, Link2, XCircle, CalendarClock, BookmarkCheck } from 'lucide-react';
 import { calcularDataPrazo, criarPrazo, PrazoCreate } from '../../services/prazos.service';
-import { buscarProcessos, ProcessoAPI } from '../../services/processos.service';
+import { buscarProcessosRaw, ProcessoAPI } from '../../services/processos.service';
 
 // ─── Feriados ─────────────────────────────────────────────────────────────────
 
@@ -211,7 +211,7 @@ export function PrazosCalculadoraModal({ isOpen, onClose }: PrazosCalculadoraMod
 
   useEffect(() => {
     if (isOpen) {
-      buscarProcessos().then(setProcessosApi).catch(console.error);
+      buscarProcessosRaw().then(setProcessosApi).catch(console.error);
     }
   }, [isOpen]);
 
@@ -756,13 +756,14 @@ export function PrazosCalculadoraModal({ isOpen, onClose }: PrazosCalculadoraMod
             ) : (
               <><BookmarkCheck className="w-4 h-4" />
                 {processoSelecionado
-                  ? `Salvar em ${processoSelecionado.numero.slice(0, 14)}…`
+                  ? `Salvar em ${processoSelecionado.numero_cnj.slice(0, 14)}…`
                   : 'Selecione um Processo'}
               </>
             )}
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

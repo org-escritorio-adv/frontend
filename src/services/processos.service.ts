@@ -11,7 +11,7 @@ interface MovimentacaoAPI {
   descricao: string;
 }
 
-interface ProcessoAPI {
+export interface ProcessoAPI {
   id: number;
   numero_cnj: string;
   tribunal: string;
@@ -19,6 +19,11 @@ interface ProcessoAPI {
   status: string;
   cliente_id: number | null;
   movimentacoes: MovimentacaoAPI[];
+}
+
+export async function buscarProcessosRaw(): Promise<ProcessoAPI[]> {
+  const response = await api.get("/processos");
+  return response.data;
 }
 
 export interface CriarProcessoPayload {

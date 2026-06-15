@@ -48,12 +48,7 @@ export function Dashboard() {
     carregarCasos();
   }, []);
 
-  const atividadesRecentes = [
-    { tipo: 'atualizacao', processo: '0001234-56.2024.8.26.0100', descricao: 'Petição protocolada com sucesso',              tempo: 'há 2 horas' },
-    { tipo: 'audiencia',   processo: '0007890-12.2023.8.26.0577', descricao: 'Audiência agendada para 15 de maio de 2026',   tempo: 'há 5 horas' },
-    { tipo: 'documento',   processo: '0003456-78.2024.5.02.0038', descricao: 'Novo documento recebido do tribunal',          tempo: 'há 1 dia'   },
-    { tipo: 'prazo',       processo: '0009012-34.2024.8.26.0602', descricao: 'Prazo de resposta em 5 dias',                  tempo: 'há 1 dia'   },
-  ];
+  const atividadesRecentes: any[] = [];
 
   const getCorStatus = (status: string) => {
     switch (status) {

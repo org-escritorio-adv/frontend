@@ -239,47 +239,6 @@ export function CaseDetails({ onBack, processoId = "1" }: CaseDetailsProps) {
         </div>
       </div>
 
-      {/* ── Timeline Cronológica ──────────────────��────────────────────────── */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-[#1A2B3C]">Timeline Cronológica</h3>
-          <span className="text-xs text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
-            {timeline.length} movimentações
-          </span>
-        </div>
-
-        <div className="space-y-0">
-          {timeline.map((mov, index) => (
-            <div key={index} className="flex gap-4">
-              {/* Linha vertical */}
-              <div className="flex flex-col items-center">
-                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0 z-10 ring-4 ring-white">
-                  {getIconeMovimentacao(mov.tipo)}
-                </div>
-                {index < timeline.length - 1 && (
-                  <div className="w-0.5 flex-1 bg-slate-200 my-1" style={{ minHeight: '24px' }} />
-                )}
-              </div>
-
-              {/* Conteúdo */}
-              <div className={`flex-1 ${index < timeline.length - 1 ? 'pb-6' : ''}`}>
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${getBadgeMovimentacao(mov.tipo)}`}>
-                      {mov.tipo}
-                    </span>
-                    <h4 className="text-[#1A2B3C] text-sm leading-snug">{mov.descricao}</h4>
-                  </div>
-                  <span className="text-xs text-slate-400 whitespace-nowrap flex-shrink-0">
-                    {formatarDataCurta(mov.data)}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 mt-0.5">{mov.orgao}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
