@@ -392,8 +392,16 @@ export function Processos({ onViewProcess }: Processos) {
       </div>
 
       {/* ─── MODAL DE CADASTRO MANUAL ─── */}
-      <Dialog open={isManualModalOpen} onOpenChange={setIsManualModalOpen}>
-        <DialogContent className="sm:max-w-[480px] bg-white border border-slate-100 rounded-xl p-6">
+      <Dialog open={isManualModalOpen} onOpenChange={(open) => {
+        if (!open && isNovoClienteModalOpen) return;
+        setIsManualModalOpen(open);
+      }}>
+        <DialogContent 
+          className="sm:max-w-[480px] bg-white border border-slate-100 rounded-xl p-6"
+          onInteractOutside={(e) => {
+            if (isNovoClienteModalOpen) e.preventDefault();
+          }}
+        >
           <DialogHeader>
             <DialogTitle className="text-lg font-semibold text-[#1A2B3C]">
               Cadastrar Processo Manualmente
