@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Building, CheckCircle2, ShieldCheck, Loader2 } from 'lucide-react';
 import { criarCliente, ClienteCreate, ClienteAPI } from '../../services/processos.service';
 
@@ -52,13 +53,19 @@ export function NovoClienteModal({ isOpen, onClose, onClienteCriado }: NovoClien
     }
   };
 
-  return (
+  // Garante que o portal só renderize no lado cliente (se o framework for SSR)
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) return null;
+
+  return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-[#1A2B3C]/40 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="absolute inset-0 bg-[#1A2B3C]/40 backdrop-blur-[2px] pointer-events-auto" onClick={onClose} />
 
       {/* Panel */}
-      <div className="relative w-full max-w-[480px] bg-white rounded-2xl shadow-2xl z-10 flex flex-col overflow-hidden">
+      <div className="relative w-full max-w-[480px] bg-white rounded-2xl shadow-2xl z-10 flex flex-col overflow-hidden pointer-events-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-[#1A2B3C] to-[#243447]">
           <div className="flex items-center gap-3">
@@ -174,6 +181,7 @@ export function NovoClienteModal({ isOpen, onClose, onClienteCriado }: NovoClien
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
