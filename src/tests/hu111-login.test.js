@@ -69,8 +69,8 @@ async function rodarTesteLogin() {
     await botaoEntrar.click();
 
     await driver.sleep(3000);
-    const logs = await driver.manage().logs().get('browser');
-    logs.forEach(log => console.log('BROWSER LOG:', log.message));
+    //const logs = await driver.manage().logs().get('browser');
+    //logs.forEach(log => console.log('BROWSER LOG:', log.message));
 
     // 4 - Aguardar o tempo do redirecionamento para o dashboard
     console.log("Aguardando o redirecionamento para o Dashboard...");
