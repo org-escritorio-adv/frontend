@@ -1,10 +1,29 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './app/App.tsx';
-import './styles/index.css';
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import App from './App.tsx'
+import { AuthProvider } from './context/AuthContext'
+import './styles/index.css'
+
+if (localStorage.getItem('darkMode') === 'true') {
+  document.documentElement.classList.add('dark')
+}
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutos de cache
+      retry: 1
+    }
+  }
+})
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </QueryClientProvider>
   </React.StrictMode>
-);
+)

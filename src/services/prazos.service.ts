@@ -1,33 +1,23 @@
-import { api } from './api';
+import { api } from './api'
+import type { CalcularPrazoResponse, PrazoCreate, PrazoAPI } from '@/pages/processos/dtos/Prazo.dto'
 
-export interface CalcularPrazoResponse {
-  data_inicial: string;
-  dias_uteis: number;
-  data_final: string;
-}
+// Re-exporta os DTOs para manter compatibilidade com os consumidores existentes
+export type { CalcularPrazoResponse, PrazoCreate, PrazoAPI } from '@/pages/processos/dtos/Prazo.dto'
 
-export async function calcularDataPrazo(dataInicial: string, diasUteis: number): Promise<CalcularPrazoResponse> {
+export async function calcularDataPrazo(
+  dataInicial: string,
+  diasUteis: number
+): Promise<CalcularPrazoResponse> {
   const response = await api.get<CalcularPrazoResponse>('/prazos/calcular-data', {
     params: {
       data_inicial: dataInicial,
-      dias_uteis: diasUteis,
-    },
-  });
-  return response.data;
-}
-
-export interface PrazoCreate {
-  titulo: string;
-  data_limite: string; // ISO 8601 string
-  processo_id: number;
-  status?: string;
-}
-
-export interface PrazoAPI extends PrazoCreate {
-  id: number;
+      dias_uteis: diasUteis
+    }
+  })
+  return response.data
 }
 
 export async function criarPrazo(payload: PrazoCreate): Promise<PrazoAPI> {
-  const response = await api.post<PrazoAPI>('/prazos/', payload);
-  return response.data;
+  const response = await api.post<PrazoAPI>('/prazos/', payload)
+  return response.data
 }

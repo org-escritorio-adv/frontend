@@ -1,0 +1,6 @@
+node_modules
+dist
+coverage
+src/shared/components/ui/
+src/tests/login.test.js
+rewrite-imports.cjs
