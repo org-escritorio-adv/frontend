@@ -20,7 +20,8 @@ export function LoginPage() {
     setError('')
     try {
       await signIn(email, senha)
-      navigate(routePaths.dashboard)
+      const isMobile = window.matchMedia('(max-width: 768px)').matches
+      navigate(isMobile ? routePaths.app : routePaths.dashboard)
     } catch {
       setError('E-mail ou senha incorretos.')
     } finally {

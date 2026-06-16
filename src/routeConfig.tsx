@@ -10,6 +10,8 @@ export const routePaths = {
   appCMS: '/app/cms',
   appEquipe: '/app/equipe',
   appAjustes: '/app/ajustes',
+  appClientes: '/app/clientes',
+  appClienteDetails: (clienteId: string) => `/app/cliente/${clienteId}`,
   appCaseDetails: (caseId: string) => `/app/caso/${caseId}`,
   legacyCase: (caseId: string) => `/caso/${caseId}`
 } as const

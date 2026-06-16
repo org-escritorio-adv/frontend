@@ -13,7 +13,8 @@ import { CMSMobile } from '@/pages/cms/mobile/CMSMobile'
 import { EquipeMobile } from '@/pages/equipe/mobile/EquipeMobile'
 import { AjustesMobile } from '@/pages/perfil/mobile/AjustesMobile'
 import { CaseDetailsMobile } from '@/pages/casos/mobile/CaseDetailsMobile'
-import { useIsMobile } from '@/hooks/useIsMobile'
+import { ClientesMobile } from '@/pages/clientes/mobile/ClientesMobile'
+import { ClienteDetailsMobile } from '@/pages/clientes/mobile/ClienteDetailsMobile'
 import { routePaths } from '@/routeConfig'
 import { useAuth } from '@/context/AuthContext'
 
@@ -22,18 +23,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (isLoading) return null
   if (!isAuthenticated) return <Navigate to={routePaths.login} replace />
   return <>{children}</>
-}
-
-function DashboardGate() {
-  const isMobile = useIsMobile()
-  if (isMobile) return <Navigate to={routePaths.app} replace />
-  return <DashboardShell />
-}
-
-function MobileGate() {
-  const isMobile = useIsMobile()
-  if (!isMobile) return <Navigate to={routePaths.dashboard} replace />
-  return <MobileLayout />
 }
 
 function LegacyCaseRedirect() {
@@ -66,7 +55,7 @@ export const router = createBrowserRouter([
     path: routePaths.dashboard,
     element: (
       <ProtectedRoute>
-        <DashboardGate />
+        <DashboardShell />
       </ProtectedRoute>
     )
   },
@@ -75,7 +64,7 @@ export const router = createBrowserRouter([
     path: routePaths.app,
     element: (
       <ProtectedRoute>
-        <MobileGate />
+        <MobileLayout />
       </ProtectedRoute>
     ),
     children: [
@@ -85,7 +74,9 @@ export const router = createBrowserRouter([
       { path: 'cms', Component: CMSMobile },
       { path: 'equipe', Component: EquipeMobile },
       { path: 'ajustes', Component: AjustesMobile },
-      { path: 'caso/:caseId', Component: CaseDetailsMobile }
+      { path: 'caso/:caseId', Component: CaseDetailsMobile },
+      { path: 'clientes', Component: ClientesMobile },
+      { path: 'cliente/:clienteId', Component: ClienteDetailsMobile }
     ]
   },
 

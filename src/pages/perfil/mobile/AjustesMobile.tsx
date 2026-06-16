@@ -16,6 +16,9 @@ import {
 import { Switch } from '@/shared/components/ui/switch'
 import { Avatar, AvatarFallback, AvatarImage } from '@/shared/components/ui/avatar'
 import { AppLogo } from '@/shared/components/layout/AppLogo'
+import { useNavigate } from 'react-router'
+import { useAuth } from '@/context/AuthContext'
+import { routePaths } from '@/routeConfig'
 
 const userProfile = {
   name: 'Dr. Carlos Silva',
@@ -123,6 +126,14 @@ const settingsSections: { title: string; items: SettingItem[] }[] = [
 ]
 
 export function AjustesMobile() {
+  const navigate = useNavigate()
+  const { signOut } = useAuth()
+
+  const handleLogout = async () => {
+    await signOut()
+    navigate(routePaths.login)
+  }
+
   const [toggles, setToggles] = useState<Record<string, boolean>>({
     'Notificações Push': true,
     'E-mail': true,
@@ -241,6 +252,7 @@ export function AjustesMobile() {
 
         {/* ── Logout ─────────────────────────────────── */}
         <button
+          onClick={handleLogout}
           className="w-full h-12 bg-white border border-red-200 text-red-500 font-medium rounded-2xl flex items-center justify-center gap-2 active:bg-red-50 transition-colors"
           style={{ boxShadow: '0 2px 8px rgba(239,68,68,0.10)' }}
         >
