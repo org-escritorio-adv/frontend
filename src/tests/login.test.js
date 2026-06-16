@@ -6,7 +6,6 @@ async function rodarTesteLogin() {
   console.log("Conectando ao Selenium no Docker...");
   
   let options = new chrome.Options();
-  // options.addArguments('--headless');
   options.addArguments('--disable-gpu');
   options.addArguments('--no-sandbox');
   options.addArguments('--disable-dev-shm-usage');
@@ -15,50 +14,69 @@ async function rodarTesteLogin() {
   let driver = await new Builder()
     .forBrowser('chrome')
     .setChromeOptions(options)
-    .usingServer('http://localhost:4444/wd/hub')
+    .usingServer('http://selenium-chrome:4444/wd/hub')
     .build();
 
   try {
-    console.log("Iniciando o teste automatizado...");
+    console.log("Iniciando o teste automatizado na Home...");
     await driver.get('http://frontend:3000');
 
-    let urlDebug = await driver.getCurrentUrl();
-    console.log("URL atual:", urlDebug);
-    let statusHtml = await driver.getPageSource();
-    console.log("Primeiros 500 chars:", statusHtml.substring(0, 500));
-
-    console.log("Aguardando carregamento inicial do corpo da página...");
+    console.log("Aguardando o carregamento da Landing Page...");
     await driver.wait(until.elementLocated(By.tagName('body')), 15000);
 
-    // Dando um tempo maior para o React buildar os componentes na tela do Docker
-    console.log("Aguardando 8 segundos para o React renderizar os componentes...");
-    await driver.sleep(8000);
+    // =================================================================
+    // Clicar em "Área do Advogado" para abrir o Login real
+    // =================================================================
+    console.log("Buscando e clicando no botão 'Área do Advogado'...");
+    let seletorAreaAdvogado = By.xpath("//button[contains(text(), 'Área do Advogado')] | //a[contains(text(), 'Área do Advogado')]");
+    let botaoAreaAdvogado = await driver.wait(until.elementLocated(seletorAreaAdvogado), 15000);
+    await botaoAreaAdvogado.click();
+
+    console.log("Aguardando redirecionamento para o formulário de Login...");
+    // Aguarda 4 segundos para o Keycloak/Tela de Login renderizar
+    await driver.sleep(4000);
+
+    // ==========================================
+    // 1 - ESPERAR E PREENCHER O E-MAIL (LOGIN REAL)
+    // ==========================================
+    console.log("Buscando o campo de e-mail de login na tela...");
+    let seletorEmail = By.css('input[type="email"], input[name="email"]');
+    let campoEmail = await driver.wait(until.elementLocated(seletorEmail), 15000);
+    await driver.wait(until.elementIsVisible(campoEmail), 15000);
     
-    let title = await driver.getTitle();
-    console.log(`Título da página capturado: "${title}"`);
+    console.log("Preenchendo o e-mail...");
+    await campoEmail.clear();
+    await campoEmail.sendKeys('admin@escritorio.com');
 
-    // 1 - esperar o campo de e-mail aparecer na tela com timeout maior
-    console.log("Buscando o campo de e-mail na tela...");
-    let seletorEmail = By.css('input[type="email"]');
-    await driver.wait(until.elementLocated(seletorEmail), 10000);
-    let campoEmail = await driver.findElement(seletorEmail);
-    await campoEmail.sendKeys('advogado@barcelostakaki.com.br');
+    // ==========================================
+    // 2 - ESPERAR E PREENCHER A SENHA
+    // ==========================================
+    console.log("Buscando o campo de senha na tela...");
+    let seletorSenha = By.css('input[type="password"], input[name="password"]');
+    let campoSenha = await driver.wait(until.elementLocated(seletorSenha), 15000);
+    await driver.wait(until.elementIsVisible(campoSenha), 15000);
+    
+    console.log("Preenchendo a senha...");
+    await campoSenha.clear();
+    await campoSenha.sendKeys('admin123');
 
-    // 2 - localizar o campo de senha e preencher o valor
-    console.log("Preenchendo o campo de senha...");
-    let campoSenha = await driver.findElement(By.css('input[type="password"]'));
-    await campoSenha.sendKeys('SenhaSegura123');
-
-    // 3 - localizar o botão entrar e clicar nele
+    // ==========================================
+    // 3 - ESPERAR E CLICAR NO BOTÃO ENTRAR
+    // ==========================================
     console.log("Clicando no botão entrar...");
-    let botaoEntrar = await driver.findElement(By.xpath("//button[contains(text(), 'ENTRAR')]"));
+    let seletorBotao = By.xpath("//button[contains(text(), 'ENTRAR') or contains(text(), 'Entrar')]");
+    let botaoEntrar = await driver.wait(until.elementLocated(seletorBotao), 10000);
     await botaoEntrar.click();
 
-    // 4 - aguardar o tempo do redirecionamento para o dashboard
-    console.log("Aguardando o redirecionamento...");
-    await driver.sleep(3000); 
+    await driver.sleep(3000);
+    const logs = await driver.manage().logs().get('browser');
+    logs.forEach(log => console.log('BROWSER LOG:', log.message));
 
-    // 5 - pegar a url atual para validar se o login funcionou
+    // 4 - Aguardar o tempo do redirecionamento para o dashboard
+    console.log("Aguardando o redirecionamento para o Dashboard...");
+    await driver.sleep(5000); 
+
+    // 5 - Pegar a url atual para validar se o login funcionou
     let urlAtual = await driver.getCurrentUrl();
     console.log(`URL final encontrada: ${urlAtual}`);
 
@@ -66,27 +84,35 @@ async function rodarTesteLogin() {
       console.log("\n==================================================");
       console.log("Sucesso: O robô conseguiu fazer o login e entrar no dashboard.");
       console.log("==================================================\n");
+      
+      console.log("Gerando evidências de sucesso...");
+      const image = await driver.takeScreenshot();
+      fs.writeFileSync('src/tests/evidencia-login.png', image, 'base64');
     } else {
       console.log("\n==================================================");
-      console.log("Erro: O robô não foi redirecionado para a tela correta.");
+      console.log("Erro: O robô não foi redirecionado para a tela correta do dashboard.");
       console.log("==================================================\n");
+      
+      console.log("Gerando print do problema de redirecionamento...");
+      const imageErroRedirecionamento = await driver.takeScreenshot();
+      fs.writeFileSync('src/tests/evidencia-erro-redirecionamento.png', imageErroRedirecionamento, 'base64');
     }
 
-    console.log("Gerando evidências de sucesso...");
-    const image = await driver.takeScreenshot();
-    fs.writeFileSync('src/tests/evidencia-login.png', image, 'base64');
-
-    console.log("Teste finalizado com sucesso!");
+    console.log("Teste finalizado!");
 
   } catch (erro) {
-    console.error("O teste falhou:", erro);
+    console.error("O teste falhou catastroficamente:", erro);
     
     try {
+      console.log("Gerando imagem do erro para análise visual...");
+      const imagemErro = await driver.takeScreenshot();
+      fs.writeFileSync('src/tests/evidencia-erro-login.png', imagemErro, 'base64');
+
       console.log("Salvando o HTML do momento exato do erro para diagnóstico...");
       const htmlErro = await driver.getPageSource();
       fs.writeFileSync('src/tests/conteudo-pagina.html', htmlErro);
     } catch (erroHtml) {
-      console.error("Não foi possível salvar o HTML de erro:", erroHtml);
+      console.error("Não foi possível salvar as evidências de erro:", erroHtml);
     }
     
   } finally {

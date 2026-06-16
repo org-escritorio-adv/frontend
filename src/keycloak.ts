@@ -1,7 +1,9 @@
 import Keycloak from 'keycloak-js';
 
+const keycloakUrl = import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8080';
+
 const keycloak = new Keycloak({
-  url: 'http://localhost:8080',
+  url: keycloakUrl, 
   realm: 'escritorio-realm',
   clientId: 'frontend-client',
 });

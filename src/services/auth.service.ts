@@ -18,6 +18,10 @@ export async function login(username: string, password: string): Promise<void> {
   );
 
   if (!response.ok) {
+    const errorBody = await response.text();
+    console.error('Keycloak URL usada:', `${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/token`);
+    console.error('Status:', response.status);
+    console.error('Resposta:', errorBody);
     throw new Error('Credenciais inválidas');
   }
 
