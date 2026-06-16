@@ -1,21 +1,30 @@
-import { api } from './api';
+import { api } from './api'
+import type { UsuarioAPI, MeuPerfil } from '@/pages/equipe/dtos/MembroListar.dto'
+import type { NovoUsuario, AtualizacaoPerfil } from '@/pages/equipe/dtos/MembroCadastrar.dto'
 
-export interface UsuarioAPI {
-  id: string;
-  nome: string;
-  email: string;
-  telefone: string;
-  perfil: string;
-  status: string;
-  avatar: string;
+// Re-exporta os DTOs para manter compatibilidade com os consumidores existentes
+export type { UsuarioAPI, MeuPerfil } from '@/pages/equipe/dtos/MembroListar.dto'
+export type { NovoUsuario, AtualizacaoPerfil } from '@/pages/equipe/dtos/MembroCadastrar.dto'
+
+export async function listarUsuarios(): Promise<UsuarioAPI[]> {
+  const response = await api.get<UsuarioAPI[]>('/usuarios/')
+  return response.data
 }
 
-export async function buscarUsuarios(): Promise<UsuarioAPI[]> {
-  const { data } = await api.get('/usuarios');
-  return data;
+export async function criarUsuario(dados: NovoUsuario): Promise<void> {
+  await api.post('/usuarios/', dados)
 }
 
-export async function buscarUsuario(id: string): Promise<UsuarioAPI> {
-  const { data } = await api.get(`/usuarios/${id}`);
-  return data;
+export async function buscarMeuPerfil(): Promise<MeuPerfil> {
+  const response = await api.get<MeuPerfil>('/usuarios/me')
+  return response.data
+}
+
+export async function atualizarMeuPerfil(dados: AtualizacaoPerfil): Promise<MeuPerfil> {
+  const response = await api.patch<MeuPerfil>('/usuarios/me', dados)
+  return response.data
+}
+
+export async function excluirUsuario(id: string): Promise<void> {
+  await api.delete(`/usuarios/${id}`)
 }

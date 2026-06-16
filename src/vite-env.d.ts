@@ -1,17 +1,17 @@
 /// <reference types="vite/client" />
 
-declare module "*.css" {
-  const content: Record<string, string>;
-  export default content;
+declare module '*.css' {
+  const content: Record<string, string>
+  export default content
 }
 
 interface ImportMetaEnv {
-  readonly VITE_KEYCLOAK_URL: string;
-  readonly VITE_KEYCLOAK_REALM: string;
-  readonly VITE_KEYCLOAK_CLIENT_ID: string;
-  readonly VITE_API_URL: string;
+  readonly VITE_KEYCLOAK_URL: string
+  readonly VITE_KEYCLOAK_REALM: string
+  readonly VITE_KEYCLOAK_CLIENT_ID: string
+  readonly VITE_API_URL: string
 }
 
 interface ImportMeta {
-  readonly env: ImportMetaEnv;
+  readonly env: ImportMetaEnv
 }
