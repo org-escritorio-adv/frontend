@@ -16,8 +16,10 @@ import {
   ChevronDown,
   Inbox,
   Clock,
-  Phone
+  Phone,
+  ShieldAlert
 } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -408,6 +410,9 @@ function ModalResponderLead({ isOpen, lead, onClose }: ModalResponderLeadProps) 
 // ─── InstitutionalCMS ─────────────────────────────────────────────────────────
 
 export function InstitutionalCMS() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+
   // ── Dados dos advogados ────────────────────────────────────────────────────
   const [advogados, setAdvogados] = useState<Advogado[]>([
     {
@@ -574,14 +579,26 @@ export function InstitutionalCMS() {
               <h3 className="text-[#1A2B3C]">Perfis de Advogados</h3>
               <p className="text-xs text-slate-400 mt-0.5">{advogados.length} membros na equipe</p>
             </div>
-            <button
-              onClick={abrirAdicionarAdvogado}
-              className="px-4 py-2.5 bg-[#1A2B3C] text-white rounded-lg hover:bg-[#243447] transition-colors flex items-center gap-2 text-sm shadow-sm"
-            >
-              <Plus className="w-4 h-4" />
-              Adicionar Advogado
-            </button>
+            {isAdmin && (
+              <button
+                onClick={abrirAdicionarAdvogado}
+                className="px-4 py-2.5 bg-[#1A2B3C] text-white rounded-lg hover:bg-[#243447] transition-colors flex items-center gap-2 text-sm shadow-sm"
+              >
+                <Plus className="w-4 h-4" />
+                Adicionar Advogado
+              </button>
+            )}
           </div>
+
+          {!isAdmin && (
+            <div className="mb-6 p-4 bg-amber-50 rounded-xl border border-amber-200 flex items-start gap-3">
+              <ShieldAlert className="w-5 h-5 text-amber-500 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-semibold text-amber-800">Visualização Restrita</h4>
+                <p className="text-xs text-amber-700 mt-1">Apenas administradores podem adicionar, editar ou excluir perfis de advogados. Como você não é um administrador, você pode apenas visualizar os perfis e leads existentes.</p>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {advogados.map(adv => (
@@ -601,22 +618,24 @@ export function InstitutionalCMS() {
                     </div>
                   </div>
 
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => abrirEditarAdvogado(adv)}
-                      className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                      title="Editar perfil"
-                    >
-                      <Edit className="w-4 h-4 text-slate-500 hover:text-[#1A2B3C]" />
-                    </button>
-                    <button
-                      onClick={() => excluirAdvogado(adv.id)}
-                      className="p-2 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Excluir perfil"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-400 hover:text-red-600" />
-                    </button>
-                  </div>
+                  {isAdmin && (
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => abrirEditarAdvogado(adv)}
+                        className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                        title="Editar perfil"
+                      >
+                        <Edit className="w-4 h-4 text-slate-500 hover:text-[#1A2B3C]" />
+                      </button>
+                      <button
+                        onClick={() => excluirAdvogado(adv.id)}
+                        className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Excluir perfil"
+                      >
+                        <Trash2 className="w-4 h-4 text-red-400 hover:text-red-600" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Info */}
@@ -638,12 +657,14 @@ export function InstitutionalCMS() {
                 <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">{adv.bio}</p>
 
                 {/* Botão editar — visível no hover */}
-                <button
-                  onClick={() => abrirEditarAdvogado(adv)}
-                  className="mt-4 w-full py-2 rounded-lg border border-gray-100 text-xs text-slate-400 hover:border-[#D4AF37]/40 hover:text-[#D4AF37] hover:bg-[#D4AF37]/5 transition-all opacity-0 group-hover:opacity-100"
-                >
-                  Editar Perfil
-                </button>
+                {isAdmin && (
+                  <button
+                    onClick={() => abrirEditarAdvogado(adv)}
+                    className="mt-4 w-full py-2 rounded-lg border border-gray-100 text-xs text-slate-400 hover:border-[#D4AF37]/40 hover:text-[#D4AF37] hover:bg-[#D4AF37]/5 transition-all opacity-0 group-hover:opacity-100"
+                  >
+                    Editar Perfil
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -748,32 +769,36 @@ export function InstitutionalCMS() {
                         <td className="px-6 py-4">
                           {isArquivado ? (
                             /* Linha arquivada: botão de desfazer */
-                            <button
-                              onClick={() => desarquivarLead(lead.id)}
-                              className="px-3 py-1.5 border border-slate-200 text-slate-400 rounded-lg text-xs hover:bg-slate-100 hover:text-slate-600 transition-colors"
-                            >
-                              Desfazer
-                            </button>
+                            isAdmin && (
+                              <button
+                                onClick={() => desarquivarLead(lead.id)}
+                                className="px-3 py-1.5 border border-slate-200 text-slate-400 rounded-lg text-xs hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                              >
+                                Desfazer
+                              </button>
+                            )
                           ) : (
-                            <div className="flex items-center gap-2">
-                              {/* Responder */}
-                              <button
-                                onClick={() => abrirResponder(lead)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1A2B3C] text-white rounded-lg text-xs hover:bg-[#243447] transition-colors shadow-sm"
-                              >
-                                <Send className="w-3 h-3" />
-                                Responder
-                              </button>
-
-                              {/* Arquivar */}
-                              <button
-                                onClick={() => arquivarLead(lead.id)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 text-slate-500 rounded-lg text-xs hover:bg-slate-50 hover:border-slate-300 transition-colors"
-                              >
-                                <Archive className="w-3 h-3" />
-                                Arquivar
-                              </button>
-                            </div>
+                            isAdmin && (
+                              <div className="flex items-center gap-2">
+                                {/* Responder */}
+                                <button
+                                  onClick={() => abrirResponder(lead)}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1A2B3C] text-white rounded-lg text-xs hover:bg-[#243447] transition-colors shadow-sm"
+                                >
+                                  <Send className="w-3 h-3" />
+                                  Responder
+                                </button>
+  
+                                {/* Arquivar */}
+                                <button
+                                  onClick={() => arquivarLead(lead.id)}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 text-slate-500 rounded-lg text-xs hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                                >
+                                  <Archive className="w-3 h-3" />
+                                  Arquivar
+                                </button>
+                              </div>
+                            )
                           )}
                         </td>
                       </tr>
