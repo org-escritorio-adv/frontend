@@ -70,7 +70,14 @@ export async function buscarProcessos(clientesMap: Record<number, string>): Prom
             descricao: p.movimentacoes[0].descricao
           }
         : { data: '-', descricao: 'Sem movimentações' },
-    status: p.status === 'arquivado' ? 'Arquivado' : 'Ativo',
+    status:
+      p.status === 'arquivado'
+        ? 'Arquivado'
+        : p.status === 'em_recurso'
+        ? 'Em Recurso'
+        : p.status === 'suspenso'
+        ? 'Suspenso'
+        : 'Ativo',
     favorito: p.favorito,
     valorCausa: 'R$ 0,00',
     casoVinculado: '-'

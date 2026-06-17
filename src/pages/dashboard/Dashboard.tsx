@@ -47,6 +47,7 @@ export function Dashboard() {
         valorCausa: p.valorCausa || 'R$ 0,00',
         responsavel: 'Responsável',
         telefone: 'Não informado',
+        favorito: p.favorito,
         movimentacoes: [
           {
             data: p.ultimaMovimentacao.data,
@@ -199,16 +200,16 @@ export function Dashboard() {
                         {/* Indicador de clique */}
                         <div
                           className={`
-                          w-5 h-5 rounded-full flex items-center justify-center transition-all
+                          w-6 h-6 rounded-full flex items-center justify-center transition-colors
                           ${
-                            isFirst
+                            caso.favorito
                               ? 'bg-[#D4AF37]/15 group-hover:bg-[#D4AF37]/30'
                               : 'bg-slate-100 group-hover:bg-slate-200'
                           }
                         `}
                         >
                           <Star
-                            className={`w-2.5 h-2.5 ${isFirst ? 'text-[#D4AF37] fill-[#D4AF37]' : 'text-slate-400'}`}
+                            className={`w-2.5 h-2.5 ${caso.favorito ? 'text-[#D4AF37] fill-[#D4AF37]' : 'text-slate-400'}`}
                           />
                         </div>
                       </div>

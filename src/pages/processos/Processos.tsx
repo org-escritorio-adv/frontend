@@ -149,6 +149,7 @@ export function Processos({ onViewProcess, autoEditProcessoId, onEditOpened }: P
   const [selectedCliente, setSelectedCliente] = useState<ClienteAPI | null>(null)
   const [processosDoCliente, setProcessosDoCliente] = useState<ProcessoAPI[]>([])
   const [isBuscarClienteModalOpen, setIsBuscarClienteModalOpen] = useState(false)
+  const [buscarClienteTermo, setBuscarClienteTermo] = useState('')
   // DataJud tab state
   const [datajudStep, setDatajudStep] = useState<DataJudStep>('form')
   const [datajudForm, setDatajudForm] = useState({ cnj: '', tribunal: 'tjdft' })
@@ -1346,18 +1347,32 @@ export function Processos({ onViewProcess, autoEditProcessoId, onEditOpened }: P
       />
 
       <Dialog open={isBuscarClienteModalOpen} onOpenChange={setIsBuscarClienteModalOpen}>
-        <DialogContent className="max-w-md bg-white border border-slate-100 shadow-xl p-0 overflow-hidden">
-          <DialogHeader className="bg-slate-50 border-b border-gray-100 px-6 py-4">
+        <DialogContent className="max-w-md bg-white border border-slate-100 shadow-xl p-0 overflow-hidden flex flex-col max-h-[85vh]">
+          <DialogHeader className="bg-slate-50 border-b border-gray-100 px-6 py-4 flex-shrink-0">
             <DialogTitle className="text-lg text-[#1A2B3C] font-semibold flex items-center gap-2">
               <Search className="w-5 h-5 text-[#D4AF37]" />
               Buscar Cliente
             </DialogTitle>
           </DialogHeader>
-          <div className="p-6 max-h-[60vh] overflow-y-auto flex flex-col gap-2">
+          <div className="px-6 pt-4 flex-shrink-0">
+            <input
+              type="text"
+              placeholder="Digite o nome, CPF ou CNPJ..."
+              value={buscarClienteTermo}
+              onChange={(e) => setBuscarClienteTermo(e.target.value)}
+              className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]"
+            />
+          </div>
+          <div className="p-6 overflow-y-auto flex flex-col gap-2">
             {clientes.length === 0 ? (
               <p className="text-sm text-slate-500">Nenhum cliente cadastrado ainda.</p>
             ) : (
-              clientes.map(c => (
+              clientes
+                .filter(c => 
+                  c.nome_razao_social.toLowerCase().includes(buscarClienteTermo.toLowerCase()) || 
+                  (c.cpf_cnpj && c.cpf_cnpj.includes(buscarClienteTermo))
+                )
+                .map(c => (
                 <div 
                   key={c.id} 
                   onClick={(e) => {
