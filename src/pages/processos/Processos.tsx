@@ -34,6 +34,7 @@ import {
 import {
   consultarDataJud,
   importarDataJud,
+  sincronizarTodosProcessos,
   type DataJudProcesso,
   type DataJudImportarResponse
 } from '@/services/datajud.service'
@@ -78,6 +79,17 @@ function parseDateAjuizamento(valor: string | null): string {
   return `${valor.slice(6, 8)}/${valor.slice(4, 6)}/${valor.slice(0, 4)}`
 }
 
+// Formata o timestamp ISO retornado pelo backend para o padrão "dd/mm/aaaa às hh:mm".
+// Se ainda não houver nenhum valor (ex: antes da primeira sincronização da sessão),
+// mostra um aviso claro em vez de uma data falsa.
+function formatarDataHora(iso: string | null): string {
+  if (!iso) return 'ainda não sincronizado'
+  const d = new Date(iso)
+  const data = d.toLocaleDateString('pt-BR')
+  const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  return `${data} às ${hora}`
+}
+
 type ModalTab = 'datajud' | 'manual'
 type DataJudStep = 'form' | 'preview' | 'success'
 
@@ -90,6 +102,8 @@ interface ProcessosProps {
 export function Processos({ onViewProcess }: ProcessosProps) {
   const [query, setQuery] = useState('')
   const [syncing, setSyncing] = useState(false)
+  const [syncError, setSyncError] = useState('')
+  const [ultimaSincronizacao, setUltimaSincronizacao] = useState<string | null>(null)
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
 
   // API State
@@ -361,10 +375,27 @@ export function Processos({ onViewProcess }: ProcessosProps) {
     )
   })
 
-  const handleSync = () => {
+  // Sincronização REAL com o DataJud (US 2.1.1).
+  // Antes era um mock (setTimeout fingindo carregar). Agora chama o backend de
+  // verdade e trata o caso de falha: mostra mensagem de erro clara e mantém os
+  // dados antigos + a data da última sincronização bem-sucedida na tela.
+  const handleSync = async () => {
     if (syncing) return
     setSyncing(true)
-    setTimeout(() => setSyncing(false), 2200)
+    setSyncError('')
+    try {
+      const resultado = await sincronizarTodosProcessos()
+      setUltimaSincronizacao(resultado.ultima_sincronizacao)
+      await loadData()
+    } catch (error: any) {
+      const msg = error?.response?.data?.detail
+      setSyncError(
+        msg ||
+          'Não foi possível sincronizar com o DataJud agora. Os dados exibidos podem estar desatualizados.'
+      )
+    } finally {
+      setSyncing(false)
+    }
   }
 
   const [exporting, setExporting] = useState(false)
@@ -499,9 +530,19 @@ export function Processos({ onViewProcess }: ProcessosProps) {
 
         <div className="ml-auto flex items-center gap-1 text-xs text-slate-400">
           <Clock className="w-3.5 h-3.5" />
-          Última sincronização: 27/04/2026 às 09:14
+          Última sincronização: {formatarDataHora(ultimaSincronizacao)}
         </div>
       </div>
+
+      {/* ── Aviso de erro de sincronização (US 2.1.1) ───────────────────────── */}
+      {syncError && (
+        <div className="px-8 py-2.5 bg-red-50 border-b border-red-100">
+          <p className="text-xs text-red-600 font-medium flex items-center gap-1.5">
+            <AlertCircle className="w-3.5 h-3.5" />
+            {syncError}
+          </p>
+        </div>
+      )}
 
       {/* ── Data Grid ────────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-auto px-8 py-6">
