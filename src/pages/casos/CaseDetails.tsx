@@ -22,6 +22,8 @@ import {
   atualizarProcesso,
   buscarClientes
 } from '@/services/processos.service'
+import { useAuth } from '@/context/AuthContext'
+import { canEditProcessos, canExportDados } from '@/lib/rbac'
 
 interface CaseDetailsProps {
   onBack?: () => void
@@ -53,12 +55,12 @@ function inferirTipo(descricao: string): TipoMovimentacao {
 
 function getIconeMovimentacao(tipo: TipoMovimentacao) {
   switch (tipo) {
-    case 'Decisão':    return <Scale    className="w-5 h-5 text-purple-500" />
-    case 'Petição':    return <FileText className="w-5 h-5 text-blue-500"   />
-    case 'Audiência':  return <Calendar className="w-5 h-5 text-green-500"  />
-    case 'Citação':    return <Users    className="w-5 h-5 text-yellow-600" />
-    case 'Distribuição': return <FileText className="w-5 h-5 text-slate-500" />
-    default:           return <FileText className="w-5 h-5 text-orange-500" />
+    case 'Decisão':      return <Scale    className="w-5 h-5 text-purple-500" />
+    case 'Petição':      return <FileText className="w-5 h-5 text-blue-500"   />
+    case 'Audiência':    return <Calendar className="w-5 h-5 text-green-500"  />
+    case 'Citação':      return <Users    className="w-5 h-5 text-yellow-600" />
+    case 'Distribuição': return <FileText className="w-5 h-5 text-slate-500"  />
+    default:             return <FileText className="w-5 h-5 text-orange-500" />
   }
 }
 
@@ -99,6 +101,9 @@ const STATUS_OPTIONS = ['ativo', 'arquivado', 'em recurso', 'suspenso']
 
 export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const podeExportar = canExportDados(user)
+  const podeEditar = canEditProcessos(user)
 
   const {
     data: processo = null,
@@ -116,7 +121,6 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
 
   const error = isError ? 'Não foi possível carregar os dados do processo.' : null
 
-  // Edição inline
   const [editando, setEditando] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [erroEdicao, setErroEdicao] = useState('')
@@ -171,7 +175,6 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
     }
   }
 
-  /* ── Loading ─────────────────────────────────────────────────────────────── */
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -183,7 +186,6 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
     )
   }
 
-  /* ── Error ───────────────────────────────────────────────────────────────── */
   if (error || !processo) {
     return (
       <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -208,10 +210,8 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
     ? (clientes.find(c => c.id === processo.cliente_id)?.nome_razao_social ?? `Cliente #${processo.cliente_id}`)
     : 'Sem cliente'
 
-  /* ── Render ──────────────────────────────────────────────────────────────── */
   return (
     <div className="p-8 max-w-7xl mx-auto">
-      {/* ── Botão Voltar ───────────────────────────────────────────────────── */}
       {onBack && (
         <button
           onClick={onBack}
@@ -222,7 +222,6 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
         </button>
       )}
 
-      {/* ── Cabeçalho ──────────────────────────────────────────────────────── */}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h2 className="text-[#1A2B3C] mb-2">Detalhes do Processo Judicial</h2>
@@ -230,7 +229,7 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
         </div>
 
         <div className="flex items-center gap-2 self-start">
-          {!editando ? (
+          {podeEditar && !editando && (
             <button
               onClick={abrirEdicao}
               className="px-4 py-2.5 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2 text-sm"
@@ -238,7 +237,8 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
               <Pencil className="w-4 h-4" />
               Editar
             </button>
-          ) : (
+          )}
+          {podeEditar && editando && (
             <>
               <button
                 onClick={cancelarEdicao}
@@ -258,13 +258,15 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
               </button>
             </>
           )}
-          <button
-            onClick={handleExportarPDF}
-            className="px-4 py-2.5 bg-[#D4AF37] text-white rounded-lg hover:bg-[#B8941F] transition-colors flex items-center gap-2 shadow-md text-sm whitespace-nowrap"
-          >
-            <Download className="w-4 h-4" />
-            Exportar PDF
-          </button>
+          {podeExportar && (
+            <button
+              onClick={handleExportarPDF}
+              className="px-4 py-2.5 bg-[#D4AF37] text-white rounded-lg hover:bg-[#B8941F] transition-colors flex items-center gap-2 shadow-md text-sm whitespace-nowrap"
+            >
+              <Download className="w-4 h-4" />
+              Exportar PDF
+            </button>
+          )}
         </div>
       </div>
 
@@ -275,12 +277,10 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
         </div>
       )}
 
-      {/* ── Informações técnicas do processo ───────────────────────────────── */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
         <h3 className="text-[#1A2B3C] mb-4">Informações do Processo</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Número CNJ — somente leitura */}
           <div>
             <div className="flex items-center gap-2 mb-1.5">
               <Hash className="w-4 h-4 text-slate-400" />
@@ -289,7 +289,6 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
             <div className="text-[#1A2B3C] font-mono text-sm">{processo.numero_cnj}</div>
           </div>
 
-          {/* Tribunal */}
           <div>
             <div className="flex items-center gap-2 mb-1.5">
               <MapPin className="w-4 h-4 text-slate-400" />
@@ -307,7 +306,6 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
             )}
           </div>
 
-          {/* Status */}
           <div>
             <div className="flex items-center gap-2 mb-1.5">
               <Scale className="w-4 h-4 text-slate-400" />
@@ -331,7 +329,6 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
             )}
           </div>
 
-          {/* Partes */}
           <div className="md:col-span-2">
             <div className="flex items-center gap-2 mb-1.5">
               <Users className="w-4 h-4 text-slate-400" />
@@ -349,7 +346,6 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
             )}
           </div>
 
-          {/* Cliente */}
           <div>
             <div className="flex items-center gap-2 mb-1.5">
               <Users className="w-4 h-4 text-slate-400" />
@@ -383,7 +379,6 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
         </div>
       </div>
 
-      {/* ── Timeline de movimentações ───────────────────────────────────────── */}
       {movimentacoes.length > 0 && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
           <h3 className="text-[#1A2B3C] mb-4">
@@ -415,18 +410,19 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
         </div>
       )}
 
-      {/* ── Documentos e Compliance ────────────────────────────────────────── */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
-        <h3 className="text-[#1A2B3C] mb-4">Documentos e Autorização de Compliance</h3>
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#D4AF37] transition-colors cursor-pointer group">
-          <Upload className="w-12 h-12 text-slate-400 group-hover:text-[#D4AF37] mx-auto mb-3 transition-colors" />
-          <p className="text-slate-600 mb-1">Enviar documentos de compliance</p>
-          <p className="text-sm text-slate-400 mb-4">Arraste arquivos para cá ou clique para selecionar</p>
-          <button className="px-5 py-2 bg-[#1A2B3C] text-white rounded-lg hover:bg-[#243447] transition-colors text-sm">
-            Selecionar Arquivos
-          </button>
+      {podeEditar && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
+          <h3 className="text-[#1A2B3C] mb-4">Documentos e Autorização de Compliance</h3>
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#D4AF37] transition-colors cursor-pointer group">
+            <Upload className="w-12 h-12 text-slate-400 group-hover:text-[#D4AF37] mx-auto mb-3 transition-colors" />
+            <p className="text-slate-600 mb-1">Enviar documentos de compliance</p>
+            <p className="text-sm text-slate-400 mb-4">Arraste arquivos para cá ou clique para selecionar</p>
+            <button className="px-5 py-2 bg-[#1A2B3C] text-white rounded-lg hover:bg-[#243447] transition-colors text-sm">
+              Selecionar Arquivos
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
