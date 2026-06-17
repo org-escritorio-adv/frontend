@@ -19,6 +19,12 @@ import { AppLogo } from '@/shared/components/layout/AppLogo'
 import { PrazosCalculadoraModal } from '@/pages/processos/PrazosCalculadoraModal'
 import { useAuth } from '@/context/AuthContext'
 import { routePaths } from '@/routeConfig'
+import {
+  buscarNotificacoes,
+  marcarComoLida,
+  marcarTodasComoLidas,
+  type NotificacaoAPI
+} from '@/services/notificacoes.service'
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrador',
@@ -32,79 +38,55 @@ const ROLE_BADGES: Record<string, string> = {
   estagiario: 'Estagiário'
 }
 
-export interface AppNotification {
-  id: string
-  type: 'novo_processo' | 'prazo' | 'atualizacao' | 'audiencia'
-  title: string
-  description: string
-  time: string
-  processId: string
-  unread: boolean
-}
-
-export const appNotifications: AppNotification[] = [
-  {
-    id: 'n1',
-    type: 'novo_processo',
-    title: 'Novo processo atribuído a você',
-    description: 'Defesa inicial – Processo Trabalhista 0098/2024 · Status: Em Andamento',
-    time: '2 min atrás',
-    processId: 'e1',
-    unread: true
-  },
-  {
-    id: 'n2',
-    type: 'prazo',
-    title: 'Prazo se aproximando',
-    description: 'Recurso de apelação – Caso nº 0045/2024 · Vence em 2 dias',
-    time: '1 hora atrás',
-    processId: 'b4',
-    unread: true
-  },
-  {
-    id: 'n3',
-    type: 'atualizacao',
-    title: 'Movimentação processual',
-    description: 'Homologação de acordo trabalhista · Nova decisão publicada',
-    time: '3 horas atrás',
-    processId: 'f1',
-    unread: false
-  },
-  {
-    id: 'n4',
-    type: 'audiencia',
-    title: 'Audiência agendada',
-    description: 'Negociação de acordo extrajudicial · 22/05/2026 às 14h00',
-    time: '1 dia atrás',
-    processId: 'e2',
-    unread: false
-  }
-]
-
-const notifIcon = (type: AppNotification['type']) => {
-  switch (type) {
+// Ícone/cor escolhidos pelo campo "tipo" da notificação vinda do backend.
+const notifIcon = (tipo: string) => {
+  switch (tipo) {
     case 'novo_processo':
       return <Briefcase className="w-4 h-4 text-blue-500" />
     case 'prazo':
       return <AlertTriangle className="w-4 h-4 text-red-500" />
+    case 'sincronizacao_falha':
+      return <AlertTriangle className="w-4 h-4 text-red-500" />
+    case 'nova_movimentacao':
     case 'atualizacao':
       return <CheckCircle className="w-4 h-4 text-emerald-500" />
     case 'audiencia':
       return <Clock className="w-4 h-4 text-purple-500" />
+    default:
+      return <Bell className="w-4 h-4 text-slate-500" />
   }
 }
 
-const notifBg = (type: AppNotification['type']) => {
-  switch (type) {
+const notifBg = (tipo: string) => {
+  switch (tipo) {
     case 'novo_processo':
       return 'bg-blue-50'
     case 'prazo':
+    case 'sincronizacao_falha':
       return 'bg-red-50'
+    case 'nova_movimentacao':
     case 'atualizacao':
       return 'bg-emerald-50'
     case 'audiencia':
       return 'bg-purple-50'
+    default:
+      return 'bg-slate-100'
   }
+}
+
+// Converte o created_at (ISO) num texto relativo simples ("há 2 h", "há 3 dias").
+function tempoRelativo(iso: string | null): string {
+  if (!iso) return ''
+  const data = new Date(iso)
+  const agora = new Date()
+  const diffMs = agora.getTime() - data.getTime()
+  const min = Math.floor(diffMs / 60000)
+  if (min < 1) return 'agora mesmo'
+  if (min < 60) return `há ${min} min`
+  const horas = Math.floor(min / 60)
+  if (horas < 24) return `há ${horas} h`
+  const dias = Math.floor(horas / 24)
+  return `há ${dias} ${dias === 1 ? 'dia' : 'dias'}`
 }
 
 interface TopBarProps {
@@ -115,7 +97,7 @@ interface TopBarProps {
 export function TopBar({ onNotificationClick, onNavigate }: TopBarProps) {
   const [panelOpen, setPanelOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const [notifications, setNotifications] = useState(appNotifications)
+  const [notifications, setNotifications] = useState<NotificacaoAPI[]>([])
   const [calcOpen, setCalcOpen] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
@@ -126,6 +108,22 @@ export function TopBar({ onNotificationClick, onNavigate }: TopBarProps) {
   const roleKey = user?.role ?? 'advogado'
   const roleLabel = ROLE_LABELS[roleKey] ?? 'Advogado(a)'
   const roleBadge = ROLE_BADGES[roleKey] ?? 'Usuário'
+
+  // Carrega notificações reais do backend ao montar e a cada 60s.
+  const carregarNotificacoes = async () => {
+    try {
+      const data = await buscarNotificacoes()
+      setNotifications(data)
+    } catch (error) {
+      console.error('Erro ao carregar notificações:', error)
+    }
+  }
+
+  useEffect(() => {
+    carregarNotificacoes()
+    const intervalo = setInterval(carregarNotificacoes, 60000)
+    return () => clearInterval(intervalo)
+  }, [])
 
   const handleLogout = async () => {
     setProfileOpen(false)
@@ -149,7 +147,7 @@ export function TopBar({ onNotificationClick, onNavigate }: TopBarProps) {
     onNavigate?.('settings')
   }
 
-  const unreadCount = notifications.filter(n => n.unread).length
+  const unreadCount = notifications.filter(n => !n.lida).length
 
   /* Close notification panel on outside click */
   useEffect(() => {
@@ -173,14 +171,27 @@ export function TopBar({ onNotificationClick, onNavigate }: TopBarProps) {
     return () => document.removeEventListener('mousedown', handler)
   }, [profileOpen])
 
-  const handleNotifClick = (notif: AppNotification) => {
-    /* Mark as read */
-    setNotifications(prev => prev.map(n => (n.id === notif.id ? { ...n, unread: false } : n)))
+  const handleNotifClick = async (notif: NotificacaoAPI) => {
+    // Marca como lida no backend e atualiza localmente
+    if (!notif.lida) {
+      try {
+        await marcarComoLida(notif.id)
+        setNotifications(prev => prev.map(n => (n.id === notif.id ? { ...n, lida: true } : n)))
+      } catch (error) {
+        console.error('Erro ao marcar notificação como lida:', error)
+      }
+    }
     setPanelOpen(false)
-    onNotificationClick?.(notif.processId)
   }
 
-  const markAllRead = () => setNotifications(prev => prev.map(n => ({ ...n, unread: false })))
+  const markAllRead = async () => {
+    try {
+      await marcarTodasComoLidas()
+      setNotifications(prev => prev.map(n => ({ ...n, lida: true })))
+    } catch (error) {
+      console.error('Erro ao marcar todas como lidas:', error)
+    }
+  }
 
   return (
     <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shadow-sm relative z-30">
@@ -248,38 +259,47 @@ export function TopBar({ onNotificationClick, onNavigate }: TopBarProps) {
 
               {/* List */}
               <div className="divide-y divide-slate-50 max-h-[340px] overflow-y-auto">
-                {notifications.map(notif => (
-                  <button
-                    key={notif.id}
-                    onClick={() => handleNotifClick(notif)}
-                    className={`w-full text-left flex items-start gap-3 px-5 py-3.5 hover:bg-slate-50 transition-colors group ${notif.unread ? 'bg-blue-50/40' : ''}`}
-                  >
-                    {/* Icon pill */}
-                    <div
-                      className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${notifBg(notif.type)}`}
+                {notifications.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 gap-2">
+                    <Bell className="w-8 h-8 text-slate-300" />
+                    <p className="text-xs text-slate-400">Nenhuma notificação por aqui.</p>
+                  </div>
+                ) : (
+                  notifications.map(notif => (
+                    <button
+                      key={notif.id}
+                      onClick={() => handleNotifClick(notif)}
+                      className={`w-full text-left flex items-start gap-3 px-5 py-3.5 hover:bg-slate-50 transition-colors group ${!notif.lida ? 'bg-blue-50/40' : ''}`}
                     >
-                      {notifIcon(notif.type)}
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <p
-                          className={`text-[12px] leading-snug ${notif.unread ? 'font-semibold text-[#1A2B3C]' : 'font-medium text-slate-600'}`}
-                        >
-                          {notif.title}
-                        </p>
-                        {notif.unread && (
-                          <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1" />
-                        )}
+                      {/* Icon pill */}
+                      <div
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${notifBg(notif.tipo)}`}
+                      >
+                        {notifIcon(notif.tipo)}
                       </div>
-                      <p className="text-[11px] text-slate-500 mt-0.5 leading-snug line-clamp-2">
-                        {notif.description}
-                      </p>
-                      <p className="text-[10px] text-slate-400 mt-1">{notif.time}</p>
-                    </div>
-                  </button>
-                ))}
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <p
+                            className={`text-[12px] leading-snug ${!notif.lida ? 'font-semibold text-[#1A2B3C]' : 'font-medium text-slate-600'}`}
+                          >
+                            {notif.titulo}
+                          </p>
+                          {!notif.lida && (
+                            <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1" />
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5 leading-snug line-clamp-2">
+                          {notif.mensagem}
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          {tempoRelativo(notif.created_at)}
+                        </p>
+                      </div>
+                    </button>
+                  ))
+                )}
               </div>
 
               {/* Footer */}

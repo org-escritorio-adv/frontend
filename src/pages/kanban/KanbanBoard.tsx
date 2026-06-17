@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
+import { DndProvider, useDrag, useDrop } from 'react-dnd'
+import { HTML5Backend } from 'react-dnd-html5-backend'
 import {
   Paperclip,
   MessageSquare,
   Calendar,
   Plus,
   MoreHorizontal,
-  Filter,
-  SlidersHorizontal,
   X,
   Phone,
   Mail,
@@ -23,11 +23,12 @@ import {
   Hash,
   MapPin,
   Download,
-  Send,
   History
 } from 'lucide-react'
-import { exportarCsvProcessos } from '@/services/processos.service'
-import { buscarTarefas, TarefaAPI } from '@/services/tarefas.service'
+import { exportarCsvProcessos, buscarProcessosRaw } from '@/services/processos.service'
+import type { ProcessoAPI } from '@/services/processos.service'
+import { buscarTarefas, criarTarefa, atualizarTarefa } from '@/services/tarefas.service'
+import type { TarefaAPI } from '@/services/tarefas.service'
 import { useAuth } from '@/context/AuthContext'
 import { canEditProcessos, canExportDados } from '@/lib/rbac'
 
@@ -57,6 +58,7 @@ interface KanbanCard {
   phone: string
   email: string
   dueDate: string
+  processoId?: number | null
   processNumber: string
   court: string
   vara: string
@@ -71,6 +73,15 @@ interface KanbanColumn {
   dotColor: string
   headerBg: string
   cards: KanbanCard[]
+}
+
+// ─── Drag-and-Drop types ─────────────────────────────────────────────────────
+
+const CARD_TYPE = 'KANBAN_CARD'
+
+interface DragItem {
+  cardId: string
+  fromColId: string
 }
 
 // ─── Constant maps ───────────────────────────────────────────────────────────
@@ -143,19 +154,27 @@ const initialColumns: KanbanColumn[] = [
 function ProcessDetailPanel({
   card,
   columnTitle,
+  processos,
   onClose,
   podeEditar,
-  podeExportar
+  podeExportar,
+  onEditProcesso,
+  onVincularProcesso
 }: {
   card: KanbanCard
   columnTitle: string
+  processos: ProcessoAPI[]
   onClose: () => void
   podeEditar: boolean
   podeExportar: boolean
+  onEditProcesso?: (processoId: string) => void
+  onVincularProcesso?: (cardId: string, processoId: number) => Promise<void>
 }) {
   const panelRef = useRef<HTMLDivElement>(null)
   const [comment, setComment] = useState('')
   const [visible, setVisible] = useState(false)
+  const [vincularId, setVincularId] = useState<number | null>(null)
+  const [isVinculando, setIsVinculando] = useState(false)
 
   /* Animate in */
   useEffect(() => {
@@ -175,13 +194,6 @@ function ProcessDetailPanel({
   const handleClose = () => {
     setVisible(false)
     setTimeout(onClose, 280)
-  }
-
-  const statusLabel: Record<string, string> = {
-    backlog: 'Backlog',
-    'em-execucao': 'Em Execução',
-    revisao: 'Revisão',
-    finalizado: 'Finalizado'
   }
 
   const historyBg: Record<HistoryEvent['type'], string> = {
@@ -381,8 +393,11 @@ function ProcessDetailPanel({
               <section>
                 <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3">
                   Adicionar Comentário
+                  <span className="ml-2 text-[10px] font-normal text-slate-300 normal-case tracking-normal">
+                    (em breve)
+                  </span>
                 </h3>
-                <div className="flex gap-2">
+                <div className="flex gap-2 opacity-50 cursor-not-allowed">
                   <div className="w-7 h-7 rounded-full bg-[#1A2B3C] flex items-center justify-center flex-shrink-0">
                     <span className="text-white text-[9px] font-bold">CS</span>
                   </div>
@@ -390,18 +405,11 @@ function ProcessDetailPanel({
                     <textarea
                       value={comment}
                       onChange={e => setComment(e.target.value)}
-                      placeholder="Escreva um comentário..."
+                      placeholder="Funcionalidade em desenvolvimento..."
                       rows={2}
-                      className="w-full text-sm text-slate-700 placeholder-slate-400 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#1A2B3C]/20 focus:border-[#1A2B3C]/30 transition"
+                      disabled
+                      className="w-full text-sm text-slate-700 placeholder-slate-400 bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 resize-none cursor-not-allowed"
                     />
-                    {comment && (
-                      <button
-                        className="absolute right-2 bottom-2 w-6 h-6 bg-[#1A2B3C] rounded-lg flex items-center justify-center hover:bg-[#243447] transition-colors"
-                        onClick={() => setComment('')}
-                      >
-                        <Send className="w-3 h-3 text-white" />
-                      </button>
-                    )}
                   </div>
                 </div>
               </section>
@@ -412,12 +420,49 @@ function ProcessDetailPanel({
         {/* ── Footer actions ──────────────────── */}
         {(podeEditar || podeExportar) && (
           <div className="border-t border-slate-200 px-6 py-4 flex items-center gap-3 flex-shrink-0 bg-white">
-            {podeEditar && (
-              <button className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#1A2B3C] text-white text-sm font-medium rounded-xl hover:bg-[#243447] transition-colors">
-                <Edit3 className="w-4 h-4" />
-                Editar Processo
-              </button>
-            )}
+            {podeEditar &&
+              (card.processNumber !== 'N/A' && onEditProcesso ? (
+                <button
+                  onClick={() => {
+                    handleClose()
+                    onEditProcesso(card.processNumber)
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#1A2B3C] text-white text-sm font-medium rounded-xl hover:bg-[#243447] transition-colors"
+                >
+                  <Edit3 className="w-4 h-4" />
+                  Editar Processo
+                </button>
+              ) : (
+                <div className="flex-1 flex items-center gap-2">
+                  <select
+                    value={vincularId ?? ''}
+                    onChange={e => setVincularId(e.target.value ? Number(e.target.value) : null)}
+                    className="flex-1 text-[12px] text-slate-600 border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1A2B3C]/20 bg-white"
+                  >
+                    <option value="">Vincular processo...</option>
+                    {processos.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.numero_cnj}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={async () => {
+                      if (!vincularId || !onVincularProcesso) return
+                      setIsVinculando(true)
+                      try {
+                        await onVincularProcesso(card.id, vincularId)
+                      } finally {
+                        setIsVinculando(false)
+                      }
+                    }}
+                    disabled={!vincularId || isVinculando}
+                    className="px-4 py-2.5 bg-[#1A2B3C] text-white text-sm font-medium rounded-xl hover:bg-[#243447] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {isVinculando ? '...' : 'Vincular'}
+                  </button>
+                </div>
+              ))}
             {podeExportar && (
               <button className="flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-200 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition-colors">
                 <Download className="w-4 h-4" />
@@ -434,16 +479,21 @@ function ProcessDetailPanel({
 // ─── Add Card Form ────────────────────────────────────────────────────────────
 
 function AddCardForm({
+  processos,
   onSave,
-  onCancel
+  onCancel,
+  isSaving = false
 }: {
+  processos: ProcessoAPI[]
   onSave: (card: Partial<KanbanCard>) => void
   onCancel: () => void
+  isSaving?: boolean
 }) {
   const [title, setTitle] = useState('')
   const [priority, setPriority] = useState<Priority>('Média')
   const [dueDate, setDueDate] = useState('')
   const [assigneeInitials, setAssigneeInitials] = useState('')
+  const [processoId, setProcessoId] = useState<number | null>(null)
   const titleRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -451,7 +501,7 @@ function AddCardForm({
   }, [])
 
   const handleSave = () => {
-    if (!title.trim()) {
+    if (isSaving || !title.trim()) {
       titleRef.current?.focus()
       return
     }
@@ -476,7 +526,8 @@ function AddCardForm({
       tags: [],
       attachments: 0,
       comments: 0,
-      processNumber: `${Date.now()}`.slice(-10),
+      processoId,
+      processNumber: 'N/A',
       court: 'A definir',
       vara: 'A definir',
       description: 'Descrição do processo a ser preenchida.',
@@ -533,15 +584,29 @@ function AddCardForm({
         type="date"
         value={dueDate}
         onChange={e => setDueDate(e.target.value)}
-        className="w-full text-[12px] text-slate-600 border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#1A2B3C]/20 mb-3"
+        className="w-full text-[12px] text-slate-600 border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#1A2B3C]/20 mb-2.5"
       />
+
+      <select
+        value={processoId ?? ''}
+        onChange={e => setProcessoId(e.target.value ? Number(e.target.value) : null)}
+        className="w-full text-[12px] text-slate-600 border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#1A2B3C]/20 bg-white mb-3"
+      >
+        <option value="">Sem processo vinculado</option>
+        {processos.map(p => (
+          <option key={p.id} value={p.id}>
+            {p.numero_cnj}
+          </option>
+        ))}
+      </select>
 
       <div className="flex gap-2">
         <button
           onClick={handleSave}
-          className="flex-1 py-1.5 bg-[#1A2B3C] text-white text-[12px] font-medium rounded-lg hover:bg-[#243447] transition-colors"
+          disabled={isSaving}
+          className="flex-1 py-1.5 bg-[#1A2B3C] text-white text-[12px] font-medium rounded-lg hover:bg-[#243447] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Adicionar
+          {isSaving ? 'Salvando...' : 'Adicionar'}
         </button>
         <button
           onClick={onCancel}
@@ -566,17 +631,26 @@ function AddCardForm({
 function KanbanCardComponent({
   card,
   isFinished,
+  fromColId,
   onClick
 }: {
   card: KanbanCard
   isFinished: boolean
+  fromColId: string
   onClick: () => void
 }) {
+  const [{ isDragging }, drag] = useDrag<DragItem, void, { isDragging: boolean }>({
+    type: CARD_TYPE,
+    item: { cardId: card.id, fromColId },
+    collect: monitor => ({ isDragging: monitor.isDragging() })
+  })
+
   return (
     <div
+      ref={drag}
       onClick={onClick}
-      className="bg-white rounded-xl p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)] border border-slate-100 hover:shadow-[0_4px_16px_rgba(0,0,0,0.10)] hover:-translate-y-0.5 transition-all duration-200 cursor-pointer group"
-      style={{ animation: 'slideDownFade 0.2s ease' }}
+      style={{ opacity: isDragging ? 0.4 : 1, animation: 'slideDownFade 0.2s ease' }}
+      className="bg-white rounded-xl p-4 shadow-[0_1px_4px_rgba(0,0,0,0.08)] border border-slate-100 hover:shadow-[0_4px_16px_rgba(0,0,0,0.10)] hover:-translate-y-0.5 transition-all duration-200 cursor-grab active:cursor-grabbing group"
     >
       {/* Top row */}
       <div className="flex items-center justify-between mb-2.5">
@@ -656,32 +730,145 @@ function KanbanCardComponent({
   )
 }
 
+// ─── Droppable Column ─────────────────────────────────────────────────────────
+
+function DroppableColumn({
+  column,
+  isAddingHere,
+  savingCard,
+  processos,
+  podeEditar,
+  onAddCard,
+  onSetAdding,
+  onCardClick,
+  onMoveCard
+}: {
+  column: KanbanColumn
+  isAddingHere: boolean
+  savingCard: boolean
+  processos: ProcessoAPI[]
+  podeEditar: boolean
+  onAddCard: (partial: Partial<KanbanCard>) => void
+  onSetAdding: (colId: string | null) => void
+  onCardClick: (cardId: string) => void
+  onMoveCard: (cardId: string, fromColId: string, toColId: string) => void
+}) {
+  const [{ isOver }, drop] = useDrop<DragItem, void, { isOver: boolean }>({
+    accept: CARD_TYPE,
+    drop: item => {
+      if (item.fromColId !== column.id) {
+        onMoveCard(item.cardId, item.fromColId, column.id)
+      }
+    },
+    collect: monitor => ({ isOver: monitor.isOver() })
+  })
+
+  return (
+    <div
+      className="w-72 flex flex-col rounded-2xl bg-[#eef0f3] overflow-hidden flex-shrink-0"
+      style={{ maxHeight: 'calc(100vh - 200px)' }}
+    >
+      {/* Column header */}
+      <div
+        className={`px-4 py-3 flex items-center justify-between flex-shrink-0 ${column.headerBg} border-b border-slate-200/60`}
+      >
+        <div className="flex items-center gap-2">
+          <span className={`w-2.5 h-2.5 rounded-full ${column.dotColor} flex-shrink-0`} />
+          <span className="text-[13px] font-semibold text-[#1A2B3C]">{column.title}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] font-bold text-slate-500 bg-white border border-slate-200 rounded-full w-6 h-6 flex items-center justify-center">
+            {column.cards.length}
+          </span>
+          {podeEditar && (
+            <button
+              onClick={() => onSetAdding(isAddingHere ? null : column.id)}
+              className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${
+                isAddingHere
+                  ? 'bg-[#1A2B3C] text-white'
+                  : 'text-slate-400 hover:text-[#1A2B3C] hover:bg-white'
+              }`}
+              title="Adicionar caso"
+            >
+              {isAddingHere ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Cards scroll area — drop target */}
+      <div
+        ref={drop}
+        className={`flex-1 overflow-y-auto p-3 space-y-3 transition-colors ${
+          isOver ? 'bg-[#1A2B3C]/5 ring-2 ring-inset ring-[#1A2B3C]/20 rounded-b-2xl' : ''
+        }`}
+      >
+        {podeEditar && isAddingHere && (
+          <AddCardForm
+            processos={processos}
+            onSave={onAddCard}
+            onCancel={() => onSetAdding(null)}
+            isSaving={savingCard}
+          />
+        )}
+
+        {column.cards.map(card => (
+          <KanbanCardComponent
+            key={card.id}
+            card={card}
+            isFinished={column.id === 'finalizado'}
+            fromColId={column.id}
+            onClick={() => onCardClick(card.id)}
+          />
+        ))}
+
+        {podeEditar && !isAddingHere && (
+          <button
+            onClick={() => onSetAdding(column.id)}
+            className="w-full py-2.5 rounded-xl border-2 border-dashed border-slate-300 text-slate-400 text-xs flex items-center justify-center gap-1.5 hover:border-[#1A2B3C]/40 hover:text-[#1A2B3C]/60 hover:bg-white/50 transition-all"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Adicionar caso
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Main KanbanBoard ────────────────────────────────────────────────────────
 
 interface KanbanBoardProps {
   initialExpandedId?: string | null
   onClearExpandedId?: () => void
+  onEditProcesso?: (processoId: string) => void
 }
 
-export function KanbanBoard({ initialExpandedId, onClearExpandedId }: KanbanBoardProps) {
+export function KanbanBoard({
+  initialExpandedId,
+  onClearExpandedId,
+  onEditProcesso
+}: KanbanBoardProps) {
   const { user } = useAuth()
   const podeEditar = canEditProcessos(user)
   const podeExportar = canExportDados(user)
-
   const [columns, setColumns] = useState<KanbanColumn[]>(initialColumns)
   const [addingInColumn, setAddingInColumn] = useState<string | null>(null)
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
+  const [savingCard, setSavingCard] = useState(false)
+  const [processos, setProcessos] = useState<ProcessoAPI[]>([])
 
   /* Open panel when triggered from notification */
   useEffect(() => {
     if (initialExpandedId) setExpandedCardId(initialExpandedId)
   }, [initialExpandedId])
 
-  /* Load Tarefas from Backend */
+  /* Load Tarefas and Processos from Backend */
   useEffect(() => {
     const loadTarefas = async () => {
       try {
-        const tarefas = await buscarTarefas()
+        const [tarefas, processosData] = await Promise.all([buscarTarefas(), buscarProcessosRaw()])
+        setProcessos(processosData)
         setColumns(prev =>
           prev.map(col => {
             let filtered: TarefaAPI[] = []
@@ -732,46 +919,99 @@ export function KanbanBoard({ initialExpandedId, onClearExpandedId }: KanbanBoar
     return null
   }
 
-  const handleAddCard = (colId: string, partial: Partial<KanbanCard>) => {
-    const newCard: KanbanCard = {
-      id: `card-${Date.now()}`,
-      title: 'Novo processo',
-      priority: 'Média',
-      tags: [],
-      attachments: 0,
-      comments: 0,
-      assignee: '??',
-      assigneeColor: 'bg-slate-500',
-      assigneeFullName: 'Não atribuído',
-      assigneeRole: 'Advogado(a)',
-      phone: '(61) 9XXXX-XXXX',
-      email: 'advogado@lexflow.com.br',
-      dueDate: '—',
-      processNumber: `${Date.now()}`.slice(-10),
-      court: 'A definir',
-      vara: 'A definir',
-      description: 'Descrição do processo a ser preenchida.',
-      history: [
-        {
-          id: 'h1',
-          type: 'criado',
-          descricao: 'Processo cadastrado manualmente',
-          data: new Date().toLocaleDateString('pt-BR'),
-          autor: 'Dr. Carlos Silva'
-        }
-      ],
-      ...partial
-    } as KanbanCard
+  const colToStatus: Record<string, string> = {
+    backlog: 'aberta',
+    'em-execucao': 'em_andamento',
+    revisao: 'revisao',
+    finalizado: 'concluida'
+  }
 
-    setColumns(prev =>
-      prev.map(col => (col.id === colId ? { ...col, cards: [newCard, ...col.cards] } : col))
-    )
-    setAddingInColumn(null)
+  const handleAddCard = async (colId: string, partial: Partial<KanbanCard>) => {
+    setSavingCard(true)
+    try {
+      const tarefa = await criarTarefa({
+        titulo: partial.title || 'Nova tarefa',
+        descricao: partial.description || null,
+        status: colToStatus[colId] ?? 'aberta',
+        processo_id: partial.processoId ?? null
+      })
+
+      const newCard: KanbanCard = {
+        id: String(tarefa.id),
+        title: tarefa.titulo,
+        priority: partial.priority ?? 'Média',
+        tags: [],
+        attachments: 0,
+        comments: 0,
+        assignee: partial.assignee ?? '??',
+        assigneeColor: partial.assigneeColor ?? 'bg-slate-500',
+        assigneeFullName: partial.assigneeFullName ?? 'Não atribuído',
+        assigneeRole: 'Advogado(a)',
+        phone: '',
+        email: '',
+        dueDate: partial.dueDate ?? '—',
+        processNumber: tarefa.processo_id ? String(tarefa.processo_id) : 'N/A',
+        court: 'Ver detalhes',
+        vara: '',
+        description: tarefa.descricao || '',
+        history: []
+      }
+
+      setColumns(prev =>
+        prev.map(col => (col.id === colId ? { ...col, cards: [newCard, ...col.cards] } : col))
+      )
+      setAddingInColumn(null)
+    } catch (err) {
+      console.error('Erro ao criar tarefa:', err)
+      alert('Não foi possível salvar a tarefa. Tente novamente.')
+    } finally {
+      setSavingCard(false)
+    }
+  }
+
+  /* Atualização otimista: move o card localmente e sincroniza com a API.
+     Em caso de falha, reverte ao estado anterior. */
+  const handleMoveCard = async (cardId: string, fromColId: string, toColId: string) => {
+    const snapshot = columns
+
+    setColumns(prev => {
+      let movedCard: KanbanCard | undefined
+      const next = prev.map(col => {
+        if (col.id === fromColId) {
+          movedCard = col.cards.find(c => c.id === cardId)
+          return { ...col, cards: col.cards.filter(c => c.id !== cardId) }
+        }
+        return col
+      })
+      if (!movedCard) return prev
+      const card = movedCard
+      return next.map(col => (col.id === toColId ? { ...col, cards: [card, ...col.cards] } : col))
+    })
+
+    try {
+      await atualizarTarefa(Number(cardId), { status: colToStatus[toColId] })
+    } catch (err) {
+      console.error('Erro ao mover tarefa:', err)
+      setColumns(snapshot)
+      alert('Não foi possível mover a tarefa. Tente novamente.')
+    }
   }
 
   const handleClosePanel = () => {
     setExpandedCardId(null)
     onClearExpandedId?.()
+  }
+
+  const handleVincularProcesso = async (cardId: string, processoId: number) => {
+    await atualizarTarefa(Number(cardId), { processo_id: processoId })
+    setColumns(prev =>
+      prev.map(col => ({
+        ...col,
+        cards: col.cards.map(c =>
+          c.id === cardId ? { ...c, processoId, processNumber: String(processoId) } : c
+        )
+      }))
+    )
   }
 
   const expandedData = expandedCardId ? findCard(expandedCardId) : null
@@ -791,140 +1031,74 @@ export function KanbanBoard({ initialExpandedId, onClearExpandedId }: KanbanBoar
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#f4f5f7] overflow-hidden">
-      {/* ── Page header ───────────────────────────────── */}
-      <div className="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between flex-shrink-0">
-        <div>
-          <h2 className="text-[#1A2B3C] text-xl font-semibold">Gestão de Casos</h2>
-          <p className="text-slate-500 text-sm mt-0.5">
-            {totalCards} casos no total · Fluxo de Trabalho do Escritório
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button className="flex items-center gap-1.5 px-3 py-1.5 text-slate-600 text-sm border border-slate-200 rounded-lg bg-white hover:bg-slate-50 transition-colors">
-            <Filter className="w-3.5 h-3.5" />
-            Filtrar
-          </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 text-slate-600 text-sm border border-slate-200 rounded-lg bg-white hover:bg-slate-50 transition-colors">
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            Ordenar
-          </button>
-
-          <div className="h-6 w-px bg-slate-200 mx-1" />
-
-          {podeExportar && (
-            <button
-              onClick={handleExportCsv}
-              disabled={exporting}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[#D4AF37] text-sm border border-slate-200 rounded-lg bg-white hover:bg-slate-50 hover:border-slate-300 transition-colors font-medium disabled:opacity-60"
-            >
-              <Download className={`w-3.5 h-3.5 ${exporting ? 'animate-pulse' : ''}`} />
-              {exporting ? 'Baixando...' : 'Exportar CSV'}
-            </button>
-          )}
-
-          {podeEditar && (
-            <button
-              onClick={() => setAddingInColumn('backlog')}
-              className="flex items-center gap-1.5 px-4 py-1.5 bg-[#1A2B3C] text-white text-sm rounded-lg hover:bg-[#243447] transition-colors font-medium"
-            >
-              <Plus className="w-4 h-4" />
-              Novo Caso
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* ── Kanban board ──────────────────────────────── */}
-      <div className="flex-1 overflow-x-auto overflow-y-hidden">
-        <div className="flex gap-5 h-full px-8 py-6 min-w-max">
-          {columns.map(column => {
-            const isAddingHere = addingInColumn === column.id
-
-            return (
-              <div
-                key={column.id}
-                className="w-72 flex flex-col rounded-2xl bg-[#eef0f3] overflow-hidden flex-shrink-0"
-                style={{ maxHeight: 'calc(100vh - 200px)' }}
+    <DndProvider backend={HTML5Backend}>
+      <div className="flex flex-col h-full bg-[#f4f5f7] overflow-hidden">
+        {/* ── Page header ───────────────────────────────── */}
+        <div className="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between flex-shrink-0">
+          <div>
+            <h2 className="text-[#1A2B3C] text-xl font-semibold">Gestão de Casos</h2>
+            <p className="text-slate-500 text-sm mt-0.5">
+              {totalCards} casos no total · Fluxo de Trabalho do Escritório
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {podeExportar && (
+              <button
+                onClick={handleExportCsv}
+                disabled={exporting}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[#D4AF37] text-sm border border-slate-200 rounded-lg bg-white hover:bg-slate-50 hover:border-slate-300 transition-colors font-medium disabled:opacity-60"
               >
-                {/* Column header */}
-                <div
-                  className={`px-4 py-3 flex items-center justify-between flex-shrink-0 ${column.headerBg} border-b border-slate-200/60`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className={`w-2.5 h-2.5 rounded-full ${column.dotColor} flex-shrink-0`} />
-                    <span className="text-[13px] font-semibold text-[#1A2B3C]">{column.title}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-bold text-slate-500 bg-white border border-slate-200 rounded-full w-6 h-6 flex items-center justify-center">
-                      {column.cards.length}
-                    </span>
-                    {podeEditar && (
-                      <button
-                        onClick={() => setAddingInColumn(isAddingHere ? null : column.id)}
-                        className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${
-                          isAddingHere
-                            ? 'bg-[#1A2B3C] text-white'
-                            : 'text-slate-400 hover:text-[#1A2B3C] hover:bg-white'
-                        }`}
-                        title="Adicionar caso"
-                      >
-                        {isAddingHere ? (
-                          <X className="w-3.5 h-3.5" />
-                        ) : (
-                          <Plus className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-                    )}
-                  </div>
-                </div>
+                <Download className={`w-3.5 h-3.5 ${exporting ? 'animate-pulse' : ''}`} />
+                {exporting ? 'Baixando...' : 'Exportar CSV'}
+              </button>
+            )}
 
-                {/* Cards scroll area */}
-                <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                  {/* Inline add form */}
-                  {podeEditar && isAddingHere && (
-                    <AddCardForm
-                      onSave={partial => handleAddCard(column.id, partial)}
-                      onCancel={() => setAddingInColumn(null)}
-                    />
-                  )}
-
-                  {column.cards.map(card => (
-                    <KanbanCardComponent
-                      key={card.id}
-                      card={card}
-                      isFinished={column.id === 'finalizado'}
-                      onClick={() => setExpandedCardId(card.id)}
-                    />
-                  ))}
-
-                  {/* Add card button (bottom) */}
-                  {podeEditar && !isAddingHere && (
-                    <button
-                      onClick={() => setAddingInColumn(column.id)}
-                      className="w-full py-2.5 rounded-xl border-2 border-dashed border-slate-300 text-slate-400 text-xs flex items-center justify-center gap-1.5 hover:border-[#1A2B3C]/40 hover:text-[#1A2B3C]/60 hover:bg-white/50 transition-all"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Adicionar caso
-                    </button>
-                  )}
-                </div>
-              </div>
-            )
-          })}
+            {podeEditar && (
+              <button
+                onClick={() => setAddingInColumn('backlog')}
+                className="flex items-center gap-1.5 px-4 py-1.5 bg-[#1A2B3C] text-white text-sm rounded-lg hover:bg-[#243447] transition-colors font-medium"
+              >
+                <Plus className="w-4 h-4" />
+                Novo Caso
+              </button>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* ── Process Detail Panel ──────────────────────── */}
-      {expandedCardId && expandedData && (
-        <ProcessDetailPanel
-          card={expandedData.card}
-          columnTitle={expandedData.columnTitle}
-          onClose={handleClosePanel}
-          podeEditar={podeEditar}
-          podeExportar={podeExportar}
-        />
-      )}
-    </div>
+        {/* ── Kanban board ──────────────────────────────── */}
+        <div className="flex-1 overflow-x-auto overflow-y-hidden">
+          <div className="flex gap-5 h-full px-8 py-6 min-w-max">
+            {columns.map(column => (
+              <DroppableColumn
+                key={column.id}
+                column={column}
+                isAddingHere={addingInColumn === column.id}
+                savingCard={savingCard}
+                processos={processos}
+                podeEditar={podeEditar}
+                onAddCard={partial => handleAddCard(column.id, partial)}
+                onSetAdding={setAddingInColumn}
+                onCardClick={setExpandedCardId}
+                onMoveCard={handleMoveCard}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* ── Process Detail Panel ──────────────────────── */}
+        {expandedCardId && expandedData && (
+          <ProcessDetailPanel
+            card={expandedData.card}
+            columnTitle={expandedData.columnTitle}
+            processos={processos}
+            onClose={handleClosePanel}
+            podeEditar={podeEditar}
+            podeExportar={podeExportar}
+            onEditProcesso={onEditProcesso}
+            onVincularProcesso={handleVincularProcesso}
+          />
+        )}
+      </div>
+    </DndProvider>
   )
 }

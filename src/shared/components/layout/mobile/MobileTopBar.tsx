@@ -300,12 +300,15 @@ export function MobileTopBar() {
         {/* Opções */}
         <div className="py-1">
           {[
-            { icon: UserCircle, label: 'Meu Perfil', red: false },
-            { icon: SlidersHorizontal, label: 'Preferências', red: false }
-          ].map(({ icon: Icon, label }) => (
+            { icon: UserCircle, label: 'Meu Perfil', path: routePaths.appAjustes },
+            { icon: SlidersHorizontal, label: 'Preferências', path: null }
+          ].map(({ icon: Icon, label, path }) => (
             <button
               key={label}
-              onClick={closeAll}
+              onClick={() => {
+                closeAll()
+                if (path) navigate(path)
+              }}
               className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100 transition-colors"
             >
               <Icon className="w-4 h-4 text-slate-500 flex-shrink-0" />

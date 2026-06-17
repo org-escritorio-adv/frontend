@@ -805,6 +805,7 @@ export function TeamManagement() {
           }
         })
       )
+      setUltimaAtualizacao(new Date())
     } catch {
       // erro ao buscar (ex.: token expirado) — não deixa dados antigos na tela
       setUsuarios([])
@@ -845,6 +846,7 @@ export function TeamManagement() {
   // ── Stats ──────────────────────────────────────────────────────────────────
   const totalAtivos = usuarios.filter(u => u.status === 'Ativo').length
   const totalAdmins = usuarios.filter(u => u.nivel === 'Admin').length
+  const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null)
 
   return (
     <>
@@ -1161,7 +1163,11 @@ export function TeamManagement() {
             <span className="text-xs text-slate-400">
               {usuarios.length} usuários · {totalAtivos} ativos
             </span>
-            <span className="text-xs text-slate-400">Atualizado em 27/04/2026</span>
+            <span className="text-xs text-slate-400">
+              {ultimaAtualizacao
+                ? `Atualizado em ${ultimaAtualizacao.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`
+                : 'Atualizando…'}
+            </span>
           </div>
         </div>
 
