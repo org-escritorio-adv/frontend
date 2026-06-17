@@ -6,7 +6,11 @@ import { buscarResumo, buscarAtividades } from '@/services/dashboard.service'
 import { buscarProcessos, buscarClientes } from '@/services/processos.service'
 import { useAuth } from '@/context/AuthContext'
 
-export function Dashboard() {
+interface DashboardProps {
+  onVerProcesso?: (id: string) => void
+}
+
+export function Dashboard({ onVerProcesso }: DashboardProps = {}) {
   // ── State do drawer ────────────────────────────────────────────────────────
   const [drawerAberto, setDrawerAberto] = useState(false)
   const [casoSelecionado, setCasoSelecionado] = useState<CasoDetalhado | null>(null)
@@ -115,7 +119,15 @@ export function Dashboard() {
   return (
     <>
       {/* ── Side Drawer (renderizado acima do conteúdo) ─────────────────────── */}
-      <CaseFavoritoDrawer caso={casoSelecionado} isOpen={drawerAberto} onClose={fecharDrawer} />
+      <CaseFavoritoDrawer
+        caso={casoSelecionado}
+        isOpen={drawerAberto}
+        onClose={fecharDrawer}
+        onVerProcessoCompleto={id => {
+          fecharDrawer()
+          onVerProcesso?.(id)
+        }}
+      />
 
       <div className="p-8 max-w-7xl mx-auto">
         {/* ── Saudação ──────────────────────────────────────────────────────── */}

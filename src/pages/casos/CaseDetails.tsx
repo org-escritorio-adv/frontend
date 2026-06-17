@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Download,
   Upload,
@@ -10,9 +11,17 @@ import {
   Hash,
   ArrowLeft,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Pencil,
+  X,
+  Check
 } from 'lucide-react'
-import { buscarProcessoPorId, exportarPdfProcesso } from '@/services/processos.service'
+import {
+  buscarProcessoPorId,
+  exportarPdfProcesso,
+  atualizarProcesso,
+  buscarClientes
+} from '@/services/processos.service'
 
 interface CaseDetailsProps {
   onBack?: () => void
@@ -29,19 +38,9 @@ type TipoMovimentacao =
 
 function inferirTipo(descricao: string): TipoMovimentacao {
   const d = descricao.toLowerCase()
-  if (
-    d.includes('decisão') ||
-    d.includes('despacho') ||
-    d.includes('sentença') ||
-    d.includes('acórdão')
-  )
+  if (d.includes('decisão') || d.includes('despacho') || d.includes('sentença') || d.includes('acórdão'))
     return 'Decisão'
-  if (
-    d.includes('petição') ||
-    d.includes('protocolo') ||
-    d.includes('manifestação') ||
-    d.includes('recurso')
-  )
+  if (d.includes('petição') || d.includes('protocolo') || d.includes('manifestação') || d.includes('recurso'))
     return 'Petição'
   if (d.includes('audiência') || d.includes('sessão') || d.includes('julgamento'))
     return 'Audiência'
@@ -54,28 +53,22 @@ function inferirTipo(descricao: string): TipoMovimentacao {
 
 function getIconeMovimentacao(tipo: TipoMovimentacao) {
   switch (tipo) {
-    case 'Decisão':
-      return <Scale className="w-5 h-5 text-purple-500" />
-    case 'Petição':
-      return <FileText className="w-5 h-5 text-blue-500" />
-    case 'Audiência':
-      return <Calendar className="w-5 h-5 text-green-500" />
-    case 'Citação':
-      return <Users className="w-5 h-5 text-yellow-600" />
-    case 'Distribuição':
-      return <FileText className="w-5 h-5 text-slate-500" />
-    default:
-      return <FileText className="w-5 h-5 text-orange-500" />
+    case 'Decisão':    return <Scale    className="w-5 h-5 text-purple-500" />
+    case 'Petição':    return <FileText className="w-5 h-5 text-blue-500"   />
+    case 'Audiência':  return <Calendar className="w-5 h-5 text-green-500"  />
+    case 'Citação':    return <Users    className="w-5 h-5 text-yellow-600" />
+    case 'Distribuição': return <FileText className="w-5 h-5 text-slate-500" />
+    default:           return <FileText className="w-5 h-5 text-orange-500" />
   }
 }
 
 function getBadgeMovimentacao(tipo: TipoMovimentacao): string {
   const map: Record<TipoMovimentacao, string> = {
-    Decisão: 'bg-purple-100 text-purple-700',
-    Petição: 'bg-blue-100   text-blue-700',
-    Audiência: 'bg-green-100  text-green-700',
-    Documento: 'bg-orange-100 text-orange-700',
-    Citação: 'bg-yellow-100 text-yellow-700',
+    Decisão:      'bg-purple-100 text-purple-700',
+    Petição:      'bg-blue-100   text-blue-700',
+    Audiência:    'bg-green-100  text-green-700',
+    Documento:    'bg-orange-100 text-orange-700',
+    Citação:      'bg-yellow-100 text-yellow-700',
     Distribuição: 'bg-slate-100  text-slate-700'
   }
   return map[tipo] ?? 'bg-gray-100 text-gray-700'
@@ -83,26 +76,14 @@ function getBadgeMovimentacao(tipo: TipoMovimentacao): string {
 
 function formatarData(iso: string): string {
   try {
-    return new Date(iso).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric'
-    })
-  } catch {
-    return iso
-  }
+    return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+  } catch { return iso }
 }
 
 function formatarDataCurta(iso: string): string {
   try {
-    return new Date(iso).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    })
-  } catch {
-    return iso
-  }
+    return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+  } catch { return iso }
 }
 
 function normalizarStatus(status: string): string {
@@ -114,7 +95,11 @@ function normalizarStatus(status: string): string {
   return status
 }
 
+const STATUS_OPTIONS = ['ativo', 'arquivado', 'em recurso', 'suspenso']
+
 export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
+  const queryClient = useQueryClient()
+
   const {
     data: processo = null,
     isLoading: loading,
@@ -124,13 +109,64 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
     queryFn: () => buscarProcessoPorId(processoId)
   })
 
+  const { data: clientes = [] } = useQuery({
+    queryKey: ['clientes-list'],
+    queryFn: () => buscarClientes()
+  })
+
   const error = isError ? 'Não foi possível carregar os dados do processo.' : null
+
+  // Edição inline
+  const [editando, setEditando] = useState(false)
+  const [salvando, setSalvando] = useState(false)
+  const [erroEdicao, setErroEdicao] = useState('')
+  const [formEdicao, setFormEdicao] = useState({
+    status: '',
+    tribunal: '',
+    partes: '',
+    cliente_id: '' as string | number,
+  })
+
+  const abrirEdicao = () => {
+    if (!processo) return
+    setFormEdicao({
+      status: processo.status ?? '',
+      tribunal: processo.tribunal ?? '',
+      partes: processo.partes ?? '',
+      cliente_id: processo.cliente_id ?? '',
+    })
+    setErroEdicao('')
+    setEditando(true)
+  }
+
+  const cancelarEdicao = () => {
+    setEditando(false)
+    setErroEdicao('')
+  }
+
+  const salvarEdicao = async () => {
+    setSalvando(true)
+    setErroEdicao('')
+    try {
+      await atualizarProcesso(processoId, {
+        status: formEdicao.status || undefined,
+        tribunal: formEdicao.tribunal || undefined,
+        partes: formEdicao.partes || undefined,
+        cliente_id: formEdicao.cliente_id !== '' ? Number(formEdicao.cliente_id) : null,
+      })
+      await queryClient.invalidateQueries({ queryKey: ['casos', processoId] })
+      setEditando(false)
+    } catch (err: any) {
+      setErroEdicao(err?.response?.data?.detail ?? 'Erro ao salvar alterações.')
+    } finally {
+      setSalvando(false)
+    }
+  }
 
   const handleExportarPDF = async () => {
     try {
       await exportarPdfProcesso(processoId)
-    } catch (err) {
-      console.error('Erro ao exportar PDF:', err)
+    } catch {
       alert('Erro ao tentar baixar o PDF do processo.')
     }
   }
@@ -165,13 +201,12 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
   }
 
   const statusLabel = normalizarStatus(processo.status)
-  const isAtivo =
-    processo.status.toLowerCase() === 'ativo' || processo.status.toLowerCase() === 'ativa'
+  const isAtivo = processo.status.toLowerCase() === 'ativo' || processo.status.toLowerCase() === 'ativa'
+  const movimentacoes = (processo.movimentacoes ?? []).map(m => ({ ...m, tipo: inferirTipo(m.descricao) }))
 
-  const movimentacoes = (processo.movimentacoes ?? []).map(m => ({
-    ...m,
-    tipo: inferirTipo(m.descricao)
-  }))
+  const clienteNome = processo.cliente_id
+    ? (clientes.find(c => c.id === processo.cliente_id)?.nome_razao_social ?? `Cliente #${processo.cliente_id}`)
+    : 'Sem cliente'
 
   /* ── Render ──────────────────────────────────────────────────────────────── */
   return (
@@ -194,20 +229,58 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
           <p className="text-slate-600 font-mono text-sm mb-3">{processo.numero_cnj}</p>
         </div>
 
-        <button
-          onClick={handleExportarPDF}
-          className="self-start px-6 py-3 bg-[#D4AF37] text-white rounded-lg hover:bg-[#B8941F] transition-colors flex items-center gap-2 shadow-md whitespace-nowrap"
-        >
-          <Download className="w-5 h-5" />
-          Exportar para PDF
-        </button>
+        <div className="flex items-center gap-2 self-start">
+          {!editando ? (
+            <button
+              onClick={abrirEdicao}
+              className="px-4 py-2.5 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2 text-sm"
+            >
+              <Pencil className="w-4 h-4" />
+              Editar
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={cancelarEdicao}
+                disabled={salvando}
+                className="px-4 py-2.5 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2 text-sm"
+              >
+                <X className="w-4 h-4" />
+                Cancelar
+              </button>
+              <button
+                onClick={salvarEdicao}
+                disabled={salvando}
+                className="px-4 py-2.5 bg-[#1A2B3C] text-white rounded-lg hover:bg-[#243447] transition-colors flex items-center gap-2 text-sm disabled:opacity-60"
+              >
+                {salvando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                Salvar
+              </button>
+            </>
+          )}
+          <button
+            onClick={handleExportarPDF}
+            className="px-4 py-2.5 bg-[#D4AF37] text-white rounded-lg hover:bg-[#B8941F] transition-colors flex items-center gap-2 shadow-md text-sm whitespace-nowrap"
+          >
+            <Download className="w-4 h-4" />
+            Exportar PDF
+          </button>
+        </div>
       </div>
+
+      {erroEdicao && (
+        <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          {erroEdicao}
+        </div>
+      )}
 
       {/* ── Informações técnicas do processo ───────────────────────────────── */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
         <h3 className="text-[#1A2B3C] mb-4">Informações do Processo</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Número CNJ — somente leitura */}
           <div>
             <div className="flex items-center gap-2 mb-1.5">
               <Hash className="w-4 h-4 text-slate-400" />
@@ -216,39 +289,86 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
             <div className="text-[#1A2B3C] font-mono text-sm">{processo.numero_cnj}</div>
           </div>
 
+          {/* Tribunal */}
           <div>
             <div className="flex items-center gap-2 mb-1.5">
               <MapPin className="w-4 h-4 text-slate-400" />
               <span className="text-sm text-slate-500">Tribunal</span>
             </div>
-            <div className="text-[#1A2B3C] text-sm uppercase">{processo.tribunal}</div>
+            {editando ? (
+              <input
+                type="text"
+                value={formEdicao.tribunal}
+                onChange={e => setFormEdicao(f => ({ ...f, tribunal: e.target.value }))}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40"
+              />
+            ) : (
+              <div className="text-[#1A2B3C] text-sm uppercase">{processo.tribunal}</div>
+            )}
           </div>
 
+          {/* Status */}
           <div>
             <div className="flex items-center gap-2 mb-1.5">
               <Scale className="w-4 h-4 text-slate-400" />
               <span className="text-sm text-slate-500">Status</span>
             </div>
-            <span
-              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
-                isAtivo ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'
-              }`}
-            >
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${isAtivo ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`}
-              />
-              {statusLabel}
-            </span>
+            {editando ? (
+              <select
+                value={formEdicao.status}
+                onChange={e => setFormEdicao(f => ({ ...f, status: e.target.value }))}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40"
+              >
+                {STATUS_OPTIONS.map(s => (
+                  <option key={s} value={s}>{normalizarStatus(s)}</option>
+                ))}
+              </select>
+            ) : (
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${isAtivo ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${isAtivo ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`} />
+                {statusLabel}
+              </span>
+            )}
           </div>
 
+          {/* Partes */}
           <div className="md:col-span-2">
             <div className="flex items-center gap-2 mb-1.5">
               <Users className="w-4 h-4 text-slate-400" />
               <span className="text-sm text-slate-500">Partes</span>
             </div>
-            <div className="text-[#1A2B3C] text-sm leading-relaxed">
-              {processo.partes ?? 'Não informado'}
+            {editando ? (
+              <textarea
+                value={formEdicao.partes}
+                onChange={e => setFormEdicao(f => ({ ...f, partes: e.target.value }))}
+                rows={2}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 resize-none"
+              />
+            ) : (
+              <div className="text-[#1A2B3C] text-sm leading-relaxed">{processo.partes ?? 'Não informado'}</div>
+            )}
+          </div>
+
+          {/* Cliente */}
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <Users className="w-4 h-4 text-slate-400" />
+              <span className="text-sm text-slate-500">Cliente</span>
             </div>
+            {editando ? (
+              <select
+                value={formEdicao.cliente_id}
+                onChange={e => setFormEdicao(f => ({ ...f, cliente_id: e.target.value }))}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40"
+              >
+                <option value="">Sem cliente</option>
+                {clientes.map(c => (
+                  <option key={c.id} value={c.id}>{c.nome_razao_social}</option>
+                ))}
+              </select>
+            ) : (
+              <div className="text-[#1A2B3C] text-sm">{clienteNome}</div>
+            )}
           </div>
 
           {processo.data_abertura && (
@@ -268,26 +388,20 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
           <h3 className="text-[#1A2B3C] mb-4">
             Movimentações
-            <span className="ml-2 text-sm font-normal text-slate-400">
-              ({movimentacoes.length})
-            </span>
+            <span className="ml-2 text-sm font-normal text-slate-400">({movimentacoes.length})</span>
           </h3>
 
           <div className="relative">
             <div className="absolute left-5 top-0 bottom-0 w-px bg-gray-100" />
-
             <div className="space-y-6">
               {movimentacoes.map((mov, i) => (
                 <div key={i} className="flex gap-4 relative">
                   <div className="flex-shrink-0 w-10 h-10 bg-white border border-gray-100 rounded-full flex items-center justify-center shadow-sm z-10">
                     {getIconeMovimentacao(mov.tipo)}
                   </div>
-
                   <div className="flex-1 pt-1.5">
                     <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${getBadgeMovimentacao(mov.tipo)}`}
-                      >
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${getBadgeMovimentacao(mov.tipo)}`}>
                         {mov.tipo}
                       </span>
                       <span className="text-xs text-slate-400">{formatarDataCurta(mov.data)}</span>
@@ -307,9 +421,7 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
         <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#D4AF37] transition-colors cursor-pointer group">
           <Upload className="w-12 h-12 text-slate-400 group-hover:text-[#D4AF37] mx-auto mb-3 transition-colors" />
           <p className="text-slate-600 mb-1">Enviar documentos de compliance</p>
-          <p className="text-sm text-slate-400 mb-4">
-            Arraste arquivos para cá ou clique para selecionar
-          </p>
+          <p className="text-sm text-slate-400 mb-4">Arraste arquivos para cá ou clique para selecionar</p>
           <button className="px-5 py-2 bg-[#1A2B3C] text-white rounded-lg hover:bg-[#243447] transition-colors text-sm">
             Selecionar Arquivos
           </button>

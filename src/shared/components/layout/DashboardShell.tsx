@@ -9,8 +9,9 @@ import { Processos } from '@/pages/processos/Processos'
 import { SettingsView } from '@/pages/perfil/SettingsView'
 import { TeamManagement } from '@/pages/equipe/TeamManagement'
 import { ProfileView } from '@/pages/perfil/ProfileView'
+import { Clientes } from '@/pages/clientes/Clientes'
 
-type ViewId = 'dashboard' | 'processos' | 'cases' | 'cms' | 'team' | 'settings' | 'profile'
+type ViewId = 'dashboard' | 'processos' | 'cases' | 'clientes' | 'cms' | 'team' | 'settings' | 'profile'
 
 export function DashboardShell() {
   const [activeView, setActiveView] = useState<ViewId>('dashboard')
@@ -30,7 +31,14 @@ export function DashboardShell() {
   const renderView = () => {
     switch (activeView) {
       case 'dashboard':
-        return <Dashboard />
+        return (
+          <Dashboard
+            onVerProcesso={id => {
+              setSelectedProcessoId(id)
+              setActiveView('cases')
+            }}
+          />
+        )
 
       case 'processos':
         return (
@@ -51,6 +59,9 @@ export function DashboardShell() {
           )
         }
         return <Processos onViewProcess={id => setSelectedProcessoId(id)} />
+
+      case 'clientes':
+        return <Clientes />
 
       case 'cms':
         return <InstitutionalCMS />
