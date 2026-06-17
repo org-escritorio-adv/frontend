@@ -25,7 +25,8 @@ import {
   Download,
   History
 } from 'lucide-react'
-import { exportarCsvProcessos } from '@/services/processos.service'
+import { exportarCsvProcessos, buscarProcessosRaw } from '@/services/processos.service'
+import type { ProcessoAPI } from '@/services/processos.service'
 import { buscarTarefas, criarTarefa, atualizarTarefa } from '@/services/tarefas.service'
 import type { TarefaAPI } from '@/services/tarefas.service'
 
@@ -55,6 +56,7 @@ interface KanbanCard {
   phone: string
   email: string
   dueDate: string
+  processoId?: number | null
   processNumber: string
   court: string
   vara: string
@@ -150,17 +152,23 @@ const initialColumns: KanbanColumn[] = [
 function ProcessDetailPanel({
   card,
   columnTitle,
+  processos,
   onClose,
-  onEditProcesso
+  onEditProcesso,
+  onVincularProcesso
 }: {
   card: KanbanCard
   columnTitle: string
+  processos: ProcessoAPI[]
   onClose: () => void
   onEditProcesso?: (processoId: string) => void
+  onVincularProcesso?: (cardId: string, processoId: number) => Promise<void>
 }) {
   const panelRef = useRef<HTMLDivElement>(null)
   const [comment, setComment] = useState('')
   const [visible, setVisible] = useState(false)
+  const [vincularId, setVincularId] = useState<number | null>(null)
+  const [isVinculando, setIsVinculando] = useState(false)
 
   /* Animate in */
   useEffect(() => {
@@ -410,9 +418,32 @@ function ProcessDetailPanel({
               Editar Processo
             </button>
           ) : (
-            <div className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-slate-100 text-slate-400 text-sm rounded-xl cursor-not-allowed">
-              <Edit3 className="w-4 h-4" />
-              Sem processo vinculado
+            <div className="flex-1 flex items-center gap-2">
+              <select
+                value={vincularId ?? ''}
+                onChange={e => setVincularId(e.target.value ? Number(e.target.value) : null)}
+                className="flex-1 text-[12px] text-slate-600 border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1A2B3C]/20 bg-white"
+              >
+                <option value="">Vincular processo...</option>
+                {processos.map(p => (
+                  <option key={p.id} value={p.id}>{p.numero_cnj}</option>
+                ))}
+              </select>
+              <button
+                onClick={async () => {
+                  if (!vincularId || !onVincularProcesso) return
+                  setIsVinculando(true)
+                  try {
+                    await onVincularProcesso(card.id, vincularId)
+                  } finally {
+                    setIsVinculando(false)
+                  }
+                }}
+                disabled={!vincularId || isVinculando}
+                className="px-4 py-2.5 bg-[#1A2B3C] text-white text-sm font-medium rounded-xl hover:bg-[#243447] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {isVinculando ? '...' : 'Vincular'}
+              </button>
             </div>
           )}
           <button className="flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-200 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition-colors">
@@ -428,10 +459,12 @@ function ProcessDetailPanel({
 // ─── Add Card Form ────────────────────────────────────────────────────────────
 
 function AddCardForm({
+  processos,
   onSave,
   onCancel,
   isSaving = false
 }: {
+  processos: ProcessoAPI[]
   onSave: (card: Partial<KanbanCard>) => void
   onCancel: () => void
   isSaving?: boolean
@@ -440,6 +473,7 @@ function AddCardForm({
   const [priority, setPriority] = useState<Priority>('Média')
   const [dueDate, setDueDate] = useState('')
   const [assigneeInitials, setAssigneeInitials] = useState('')
+  const [processoId, setProcessoId] = useState<number | null>(null)
   const titleRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -472,7 +506,8 @@ function AddCardForm({
       tags: [],
       attachments: 0,
       comments: 0,
-      processNumber: `${Date.now()}`.slice(-10),
+      processoId,
+      processNumber: 'N/A',
       court: 'A definir',
       vara: 'A definir',
       description: 'Descrição do processo a ser preenchida.',
@@ -529,8 +564,21 @@ function AddCardForm({
         type="date"
         value={dueDate}
         onChange={e => setDueDate(e.target.value)}
-        className="w-full text-[12px] text-slate-600 border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#1A2B3C]/20 mb-3"
+        className="w-full text-[12px] text-slate-600 border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#1A2B3C]/20 mb-2.5"
       />
+
+      <select
+        value={processoId ?? ''}
+        onChange={e => setProcessoId(e.target.value ? Number(e.target.value) : null)}
+        className="w-full text-[12px] text-slate-600 border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#1A2B3C]/20 bg-white mb-3"
+      >
+        <option value="">Sem processo vinculado</option>
+        {processos.map(p => (
+          <option key={p.id} value={p.id}>
+            {p.numero_cnj}
+          </option>
+        ))}
+      </select>
 
       <div className="flex gap-2">
         <button
@@ -668,6 +716,7 @@ function DroppableColumn({
   column,
   isAddingHere,
   savingCard,
+  processos,
   onAddCard,
   onSetAdding,
   onCardClick,
@@ -676,6 +725,7 @@ function DroppableColumn({
   column: KanbanColumn
   isAddingHere: boolean
   savingCard: boolean
+  processos: ProcessoAPI[]
   onAddCard: (partial: Partial<KanbanCard>) => void
   onSetAdding: (colId: string | null) => void
   onCardClick: (cardId: string) => void
@@ -735,6 +785,7 @@ function DroppableColumn({
       >
         {isAddingHere && (
           <AddCardForm
+            processos={processos}
             onSave={onAddCard}
             onCancel={() => onSetAdding(null)}
             isSaving={savingCard}
@@ -778,17 +829,19 @@ export function KanbanBoard({ initialExpandedId, onClearExpandedId, onEditProces
   const [addingInColumn, setAddingInColumn] = useState<string | null>(null)
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
   const [savingCard, setSavingCard] = useState(false)
+  const [processos, setProcessos] = useState<ProcessoAPI[]>([])
 
   /* Open panel when triggered from notification */
   useEffect(() => {
     if (initialExpandedId) setExpandedCardId(initialExpandedId)
   }, [initialExpandedId])
 
-  /* Load Tarefas from Backend */
+  /* Load Tarefas and Processos from Backend */
   useEffect(() => {
     const loadTarefas = async () => {
       try {
-        const tarefas = await buscarTarefas()
+        const [tarefas, processosData] = await Promise.all([buscarTarefas(), buscarProcessosRaw()])
+        setProcessos(processosData)
         setColumns(prev =>
           prev.map(col => {
             let filtered: TarefaAPI[] = []
@@ -852,7 +905,8 @@ export function KanbanBoard({ initialExpandedId, onClearExpandedId, onEditProces
       const tarefa = await criarTarefa({
         titulo: partial.title || 'Nova tarefa',
         descricao: partial.description || null,
-        status: colToStatus[colId] ?? 'aberta'
+        status: colToStatus[colId] ?? 'aberta',
+        processo_id: partial.processoId ?? null
       })
 
       const newCard: KanbanCard = {
@@ -923,6 +977,18 @@ export function KanbanBoard({ initialExpandedId, onClearExpandedId, onEditProces
     onClearExpandedId?.()
   }
 
+  const handleVincularProcesso = async (cardId: string, processoId: number) => {
+    await atualizarTarefa(Number(cardId), { processo_id: processoId })
+    setColumns(prev =>
+      prev.map(col => ({
+        ...col,
+        cards: col.cards.map(c =>
+          c.id === cardId ? { ...c, processoId, processNumber: String(processoId) } : c
+        )
+      }))
+    )
+  }
+
   const expandedData = expandedCardId ? findCard(expandedCardId) : null
 
   const [exporting, setExporting] = useState(false)
@@ -979,6 +1045,7 @@ export function KanbanBoard({ initialExpandedId, onClearExpandedId, onEditProces
                 column={column}
                 isAddingHere={addingInColumn === column.id}
                 savingCard={savingCard}
+                processos={processos}
                 onAddCard={partial => handleAddCard(column.id, partial)}
                 onSetAdding={setAddingInColumn}
                 onCardClick={setExpandedCardId}
@@ -993,8 +1060,10 @@ export function KanbanBoard({ initialExpandedId, onClearExpandedId, onEditProces
           <ProcessDetailPanel
             card={expandedData.card}
             columnTitle={expandedData.columnTitle}
+            processos={processos}
             onClose={handleClosePanel}
             onEditProcesso={onEditProcesso}
+            onVincularProcesso={handleVincularProcesso}
           />
         )}
       </div>
