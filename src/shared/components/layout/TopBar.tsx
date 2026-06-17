@@ -176,9 +176,7 @@ export function TopBar({ onNotificationClick, onNavigate }: TopBarProps) {
     if (!notif.lida) {
       try {
         await marcarComoLida(notif.id)
-        setNotifications(prev =>
-          prev.map(n => (n.id === notif.id ? { ...n, lida: true } : n))
-        )
+        setNotifications(prev => prev.map(n => (n.id === notif.id ? { ...n, lida: true } : n)))
       } catch (error) {
         console.error('Erro ao marcar notificação como lida:', error)
       }

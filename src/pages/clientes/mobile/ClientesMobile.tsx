@@ -10,7 +10,8 @@ import {
   Building2,
   Phone,
   Mail,
-  Users
+  Users,
+  ShieldAlert
 } from 'lucide-react'
 import {
   listarClientes,
@@ -22,11 +23,16 @@ import {
   type TipoCliente
 } from '@/services/clientes.service'
 import { routePaths } from '@/routeConfig'
+import { useAuth } from '@/context/AuthContext'
+import { canViewClientes, canCreateClientes } from '@/lib/rbac'
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function ClientesMobile() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const podeVerClientes = canViewClientes(user)
+  const podeCriarClientes = canCreateClientes(user)
   const [query, setQuery] = useState('')
   const [filtroTipo, setFiltroTipo] = useState<'todos' | 'PF' | 'PJ'>('todos')
 
@@ -48,6 +54,10 @@ export function ClientesMobile() {
   })
 
   const loadClientes = async () => {
+    if (!podeVerClientes) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setErrorApi('')
     try {
@@ -121,6 +131,22 @@ export function ClientesMobile() {
   const totalPF = clientes.filter(c => inferirTipo(c.cpf_cnpj) === 'PF').length
   const totalPJ = clientes.filter(c => inferirTipo(c.cpf_cnpj) === 'PJ').length
 
+  if (!podeVerClientes) {
+    return (
+      <div className="flex items-center justify-center min-h-screen p-8">
+        <div className="flex flex-col items-center gap-3 text-center max-w-sm">
+          <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center">
+            <ShieldAlert className="w-7 h-7 text-amber-500" />
+          </div>
+          <h3 className="text-[#1A2B3C] font-semibold">Acesso restrito</h3>
+          <p className="text-sm text-slate-500">
+            A lista de clientes é exclusiva para administradores e advogados.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-6">
       {/* ── Cabeçalho ────────────────────────────────────────────── */}
@@ -133,13 +159,15 @@ export function ClientesMobile() {
       </div>
 
       {/* ── Botão Novo Cliente ────────────────────────────────────── */}
-      <button
-        onClick={() => setModalOpen(true)}
-        className="w-full flex items-center justify-center gap-2 mb-4 px-4 py-3 rounded-xl bg-[#1A2B3C] text-white text-sm font-medium hover:bg-[#243447] transition-colors shadow-sm"
-      >
-        <Plus className="w-4 h-4" />
-        Novo Cliente
-      </button>
+      {podeCriarClientes && (
+        <button
+          onClick={() => setModalOpen(true)}
+          className="w-full flex items-center justify-center gap-2 mb-4 px-4 py-3 rounded-xl bg-[#1A2B3C] text-white text-sm font-medium hover:bg-[#243447] transition-colors shadow-sm"
+        >
+          <Plus className="w-4 h-4" />
+          Novo Cliente
+        </button>
+      )}
 
       {/* ── Busca ─────────────────────────────────────────────────── */}
       <div className="relative mb-3">

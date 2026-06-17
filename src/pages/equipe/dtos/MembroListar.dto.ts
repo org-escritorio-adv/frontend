@@ -21,6 +21,7 @@ export interface MeuPerfil {
   oab: string | null
   status: string | null
   avatar: string | null
+  permissoes: Record<string, boolean>
   created_at: string | null
   updated_at: string | null
 }

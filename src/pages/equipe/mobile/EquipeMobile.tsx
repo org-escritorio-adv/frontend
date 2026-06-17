@@ -19,6 +19,8 @@ import {
   AlertTriangle
 } from 'lucide-react'
 import { criarUsuario, listarUsuarios } from '@/services/equipe.service'
+import { useAuth } from '@/context/AuthContext'
+import { canManageUsuarios } from '@/lib/rbac'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,6 +46,7 @@ const permissoesPadrao: Record<NivelAcesso, Record<string, boolean>> = {
     criarProcessos: true,
     editarProcessos: true,
     excluirProcessos: true,
+    criarClientes: true,
     editarPerfisSite: true,
     publicarConteudo: true,
     exportarDados: true,
@@ -55,6 +58,7 @@ const permissoesPadrao: Record<NivelAcesso, Record<string, boolean>> = {
     criarProcessos: true,
     editarProcessos: true,
     excluirProcessos: false,
+    criarClientes: true,
     editarPerfisSite: false,
     publicarConteudo: false,
     exportarDados: true,
@@ -66,6 +70,7 @@ const permissoesPadrao: Record<NivelAcesso, Record<string, boolean>> = {
     criarProcessos: false,
     editarProcessos: false,
     excluirProcessos: false,
+    criarClientes: false,
     editarPerfisSite: false,
     publicarConteudo: false,
     exportarDados: false,
@@ -348,17 +353,21 @@ function BottomSheetAdicionarUsuario({
 
 function perfilToNivel(perfil: string): NivelAcesso {
   const mapa: Record<string, NivelAcesso> = {
-    Admin: 'Admin',
-    Advogado: 'Advogado',
-    Estagiário: 'Estagiário',
-    Estagiario: 'Estagiário'
+    admin: 'Admin',
+    advogado: 'Advogado',
+    estagiario: 'Estagiário',
+    estagiário: 'Estagiário'
   }
-  return mapa[perfil] ?? 'Advogado'
+  const chave = (perfil ?? '').trim().toLowerCase()
+  return mapa[chave] ?? 'Advogado'
 }
 
 // ─── EquipeMobile (tela principal) ────────────────────────────────────────────
 
 export function EquipeMobile() {
+  const { user } = useAuth()
+  const podeGerenciar = canManageUsuarios(user)
+
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [carregando, setCarregando] = useState(true)
   const [addModal, setAddModal] = useState(false)
@@ -463,13 +472,15 @@ export function EquipeMobile() {
         </div>
 
         {/* ── Botão Adicionar ────────────────────────────────────────────── */}
-        <button
-          onClick={() => setAddModal(true)}
-          className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-[#1A2B3C] text-white rounded-xl hover:bg-[#243447] transition-colors shadow-sm text-sm font-medium mb-6"
-        >
-          <Plus className="w-4 h-4" />
-          Adicionar Usuário
-        </button>
+        {podeGerenciar && (
+          <button
+            onClick={() => setAddModal(true)}
+            className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-[#1A2B3C] text-white rounded-xl hover:bg-[#243447] transition-colors shadow-sm text-sm font-medium mb-6"
+          >
+            <Plus className="w-4 h-4" />
+            Adicionar Usuário
+          </button>
+        )}
 
         {/* ── Lista de Usuários ──────────────────────────────────────────── */}
         {carregando && (
