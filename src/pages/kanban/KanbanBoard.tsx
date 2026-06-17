@@ -28,6 +28,8 @@ import {
 } from 'lucide-react'
 import { exportarCsvProcessos } from '@/services/processos.service'
 import { buscarTarefas, TarefaAPI } from '@/services/tarefas.service'
+import { useAuth } from '@/context/AuthContext'
+import { canEditProcessos, canExportDados } from '@/lib/rbac'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -141,11 +143,15 @@ const initialColumns: KanbanColumn[] = [
 function ProcessDetailPanel({
   card,
   columnTitle,
-  onClose
+  onClose,
+  podeEditar,
+  podeExportar
 }: {
   card: KanbanCard
   columnTitle: string
   onClose: () => void
+  podeEditar: boolean
+  podeExportar: boolean
 }) {
   const panelRef = useRef<HTMLDivElement>(null)
   const [comment, setComment] = useState('')
@@ -371,47 +377,55 @@ function ProcessDetailPanel({
             </section>
 
             {/* Add comment */}
-            <section>
-              <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3">
-                Adicionar Comentário
-              </h3>
-              <div className="flex gap-2">
-                <div className="w-7 h-7 rounded-full bg-[#1A2B3C] flex items-center justify-center flex-shrink-0">
-                  <span className="text-white text-[9px] font-bold">CS</span>
+            {podeEditar && (
+              <section>
+                <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                  Adicionar Comentário
+                </h3>
+                <div className="flex gap-2">
+                  <div className="w-7 h-7 rounded-full bg-[#1A2B3C] flex items-center justify-center flex-shrink-0">
+                    <span className="text-white text-[9px] font-bold">CS</span>
+                  </div>
+                  <div className="flex-1 relative">
+                    <textarea
+                      value={comment}
+                      onChange={e => setComment(e.target.value)}
+                      placeholder="Escreva um comentário..."
+                      rows={2}
+                      className="w-full text-sm text-slate-700 placeholder-slate-400 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#1A2B3C]/20 focus:border-[#1A2B3C]/30 transition"
+                    />
+                    {comment && (
+                      <button
+                        className="absolute right-2 bottom-2 w-6 h-6 bg-[#1A2B3C] rounded-lg flex items-center justify-center hover:bg-[#243447] transition-colors"
+                        onClick={() => setComment('')}
+                      >
+                        <Send className="w-3 h-3 text-white" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="flex-1 relative">
-                  <textarea
-                    value={comment}
-                    onChange={e => setComment(e.target.value)}
-                    placeholder="Escreva um comentário..."
-                    rows={2}
-                    className="w-full text-sm text-slate-700 placeholder-slate-400 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-[#1A2B3C]/20 focus:border-[#1A2B3C]/30 transition"
-                  />
-                  {comment && (
-                    <button
-                      className="absolute right-2 bottom-2 w-6 h-6 bg-[#1A2B3C] rounded-lg flex items-center justify-center hover:bg-[#243447] transition-colors"
-                      onClick={() => setComment('')}
-                    >
-                      <Send className="w-3 h-3 text-white" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </section>
+              </section>
+            )}
           </div>
         </div>
 
         {/* ── Footer actions ──────────────────── */}
-        <div className="border-t border-slate-200 px-6 py-4 flex items-center gap-3 flex-shrink-0 bg-white">
-          <button className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#1A2B3C] text-white text-sm font-medium rounded-xl hover:bg-[#243447] transition-colors">
-            <Edit3 className="w-4 h-4" />
-            Editar Processo
-          </button>
-          <button className="flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-200 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition-colors">
-            <Download className="w-4 h-4" />
-            Exportar
-          </button>
-        </div>
+        {(podeEditar || podeExportar) && (
+          <div className="border-t border-slate-200 px-6 py-4 flex items-center gap-3 flex-shrink-0 bg-white">
+            {podeEditar && (
+              <button className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#1A2B3C] text-white text-sm font-medium rounded-xl hover:bg-[#243447] transition-colors">
+                <Edit3 className="w-4 h-4" />
+                Editar Processo
+              </button>
+            )}
+            {podeExportar && (
+              <button className="flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-200 text-slate-600 text-sm rounded-xl hover:bg-slate-50 transition-colors">
+                <Download className="w-4 h-4" />
+                Exportar
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </>
   )
@@ -650,6 +664,10 @@ interface KanbanBoardProps {
 }
 
 export function KanbanBoard({ initialExpandedId, onClearExpandedId }: KanbanBoardProps) {
+  const { user } = useAuth()
+  const podeEditar = canEditProcessos(user)
+  const podeExportar = canExportDados(user)
+
   const [columns, setColumns] = useState<KanbanColumn[]>(initialColumns)
   const [addingInColumn, setAddingInColumn] = useState<string | null>(null)
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null)
@@ -794,22 +812,26 @@ export function KanbanBoard({ initialExpandedId, onClearExpandedId }: KanbanBoar
 
           <div className="h-6 w-px bg-slate-200 mx-1" />
 
-          <button
-            onClick={handleExportCsv}
-            disabled={exporting}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[#D4AF37] text-sm border border-slate-200 rounded-lg bg-white hover:bg-slate-50 hover:border-slate-300 transition-colors font-medium disabled:opacity-60"
-          >
-            <Download className={`w-3.5 h-3.5 ${exporting ? 'animate-pulse' : ''}`} />
-            {exporting ? 'Baixando...' : 'Exportar CSV'}
-          </button>
+          {podeExportar && (
+            <button
+              onClick={handleExportCsv}
+              disabled={exporting}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[#D4AF37] text-sm border border-slate-200 rounded-lg bg-white hover:bg-slate-50 hover:border-slate-300 transition-colors font-medium disabled:opacity-60"
+            >
+              <Download className={`w-3.5 h-3.5 ${exporting ? 'animate-pulse' : ''}`} />
+              {exporting ? 'Baixando...' : 'Exportar CSV'}
+            </button>
+          )}
 
-          <button
-            onClick={() => setAddingInColumn('backlog')}
-            className="flex items-center gap-1.5 px-4 py-1.5 bg-[#1A2B3C] text-white text-sm rounded-lg hover:bg-[#243447] transition-colors font-medium"
-          >
-            <Plus className="w-4 h-4" />
-            Novo Caso
-          </button>
+          {podeEditar && (
+            <button
+              onClick={() => setAddingInColumn('backlog')}
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-[#1A2B3C] text-white text-sm rounded-lg hover:bg-[#243447] transition-colors font-medium"
+            >
+              <Plus className="w-4 h-4" />
+              Novo Caso
+            </button>
+          )}
         </div>
       </div>
 
@@ -837,28 +859,30 @@ export function KanbanBoard({ initialExpandedId, onClearExpandedId }: KanbanBoar
                     <span className="text-[11px] font-bold text-slate-500 bg-white border border-slate-200 rounded-full w-6 h-6 flex items-center justify-center">
                       {column.cards.length}
                     </span>
-                    <button
-                      onClick={() => setAddingInColumn(isAddingHere ? null : column.id)}
-                      className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${
-                        isAddingHere
-                          ? 'bg-[#1A2B3C] text-white'
-                          : 'text-slate-400 hover:text-[#1A2B3C] hover:bg-white'
-                      }`}
-                      title="Adicionar caso"
-                    >
-                      {isAddingHere ? (
-                        <X className="w-3.5 h-3.5" />
-                      ) : (
-                        <Plus className="w-3.5 h-3.5" />
-                      )}
-                    </button>
+                    {podeEditar && (
+                      <button
+                        onClick={() => setAddingInColumn(isAddingHere ? null : column.id)}
+                        className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${
+                          isAddingHere
+                            ? 'bg-[#1A2B3C] text-white'
+                            : 'text-slate-400 hover:text-[#1A2B3C] hover:bg-white'
+                        }`}
+                        title="Adicionar caso"
+                      >
+                        {isAddingHere ? (
+                          <X className="w-3.5 h-3.5" />
+                        ) : (
+                          <Plus className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
 
                 {/* Cards scroll area */}
                 <div className="flex-1 overflow-y-auto p-3 space-y-3">
                   {/* Inline add form */}
-                  {isAddingHere && (
+                  {podeEditar && isAddingHere && (
                     <AddCardForm
                       onSave={partial => handleAddCard(column.id, partial)}
                       onCancel={() => setAddingInColumn(null)}
@@ -875,7 +899,7 @@ export function KanbanBoard({ initialExpandedId, onClearExpandedId }: KanbanBoar
                   ))}
 
                   {/* Add card button (bottom) */}
-                  {!isAddingHere && (
+                  {podeEditar && !isAddingHere && (
                     <button
                       onClick={() => setAddingInColumn(column.id)}
                       className="w-full py-2.5 rounded-xl border-2 border-dashed border-slate-300 text-slate-400 text-xs flex items-center justify-center gap-1.5 hover:border-[#1A2B3C]/40 hover:text-[#1A2B3C]/60 hover:bg-white/50 transition-all"
@@ -897,6 +921,8 @@ export function KanbanBoard({ initialExpandedId, onClearExpandedId }: KanbanBoar
           card={expandedData.card}
           columnTitle={expandedData.columnTitle}
           onClose={handleClosePanel}
+          podeEditar={podeEditar}
+          podeExportar={podeExportar}
         />
       )}
     </div>

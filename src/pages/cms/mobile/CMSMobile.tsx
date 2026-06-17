@@ -14,11 +14,14 @@ import {
   Shield,
   Users,
   Settings2,
-  AlertTriangle
+  AlertTriangle,
+  ShieldAlert
 } from 'lucide-react'
 import { Badge } from '@/shared/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/shared/components/ui/avatar'
+import { useAuth } from '@/context/AuthContext'
+import { canAccessCMS } from '@/lib/rbac'
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -254,6 +257,8 @@ const initialTeamMembers: TeamMember[] = [
 // ── Componente principal ─────────────────────────────────────────────────────
 
 export function CMSMobile() {
+  const { user } = useAuth()
+
   const [selectedTab, setSelectedTab] = useState('advogados')
   const [lawyers, setLawyers] = useState<Lawyer[]>(initialLawyers)
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>(initialTeamMembers)
@@ -367,6 +372,22 @@ export function CMSMobile() {
       document.body.style.overflow = ''
     }
   }, [teamSheetOpen])
+
+  if (!canAccessCMS(user)) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh] p-6">
+        <div className="flex flex-col items-center gap-3 text-center max-w-sm">
+          <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center">
+            <ShieldAlert className="w-7 h-7 text-amber-500" />
+          </div>
+          <h3 className="text-[#1A2B3C] font-semibold">Acesso restrito</h3>
+          <p className="text-sm text-slate-500">
+            O CMS do site institucional é exclusivo para administradores.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   const validateTeam = (): boolean => {
     const e: TeamFormErrors = {}

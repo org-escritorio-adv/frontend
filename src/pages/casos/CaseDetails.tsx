@@ -13,6 +13,8 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { buscarProcessoPorId, exportarPdfProcesso } from '@/services/processos.service'
+import { useAuth } from '@/context/AuthContext'
+import { canEditProcessos, canExportDados } from '@/lib/rbac'
 
 interface CaseDetailsProps {
   onBack?: () => void
@@ -115,6 +117,10 @@ function normalizarStatus(status: string): string {
 }
 
 export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
+  const { user } = useAuth()
+  const podeExportar = canExportDados(user)
+  const podeEditar = canEditProcessos(user)
+
   const {
     data: processo = null,
     isLoading: loading,
@@ -194,13 +200,15 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
           <p className="text-slate-600 font-mono text-sm mb-3">{processo.numero_cnj}</p>
         </div>
 
-        <button
-          onClick={handleExportarPDF}
-          className="self-start px-6 py-3 bg-[#D4AF37] text-white rounded-lg hover:bg-[#B8941F] transition-colors flex items-center gap-2 shadow-md whitespace-nowrap"
-        >
-          <Download className="w-5 h-5" />
-          Exportar para PDF
-        </button>
+        {podeExportar && (
+          <button
+            onClick={handleExportarPDF}
+            className="self-start px-6 py-3 bg-[#D4AF37] text-white rounded-lg hover:bg-[#B8941F] transition-colors flex items-center gap-2 shadow-md whitespace-nowrap"
+          >
+            <Download className="w-5 h-5" />
+            Exportar para PDF
+          </button>
+        )}
       </div>
 
       {/* ── Informações técnicas do processo ───────────────────────────────── */}
@@ -302,19 +310,21 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
       )}
 
       {/* ── Documentos e Compliance ────────────────────────────────────────── */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
-        <h3 className="text-[#1A2B3C] mb-4">Documentos e Autorização de Compliance</h3>
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#D4AF37] transition-colors cursor-pointer group">
-          <Upload className="w-12 h-12 text-slate-400 group-hover:text-[#D4AF37] mx-auto mb-3 transition-colors" />
-          <p className="text-slate-600 mb-1">Enviar documentos de compliance</p>
-          <p className="text-sm text-slate-400 mb-4">
-            Arraste arquivos para cá ou clique para selecionar
-          </p>
-          <button className="px-5 py-2 bg-[#1A2B3C] text-white rounded-lg hover:bg-[#243447] transition-colors text-sm">
-            Selecionar Arquivos
-          </button>
+      {podeEditar && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
+          <h3 className="text-[#1A2B3C] mb-4">Documentos e Autorização de Compliance</h3>
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#D4AF37] transition-colors cursor-pointer group">
+            <Upload className="w-12 h-12 text-slate-400 group-hover:text-[#D4AF37] mx-auto mb-3 transition-colors" />
+            <p className="text-slate-600 mb-1">Enviar documentos de compliance</p>
+            <p className="text-sm text-slate-400 mb-4">
+              Arraste arquivos para cá ou clique para selecionar
+            </p>
+            <button className="px-5 py-2 bg-[#1A2B3C] text-white rounded-lg hover:bg-[#243447] transition-colors text-sm">
+              Selecionar Arquivos
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

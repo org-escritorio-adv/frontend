@@ -5,6 +5,7 @@ import { CaseFavoritoDrawer, type CasoDetalhado } from '@/pages/casos/CaseFavori
 import { buscarResumo, buscarAtividades } from '@/services/dashboard.service'
 import { buscarProcessos, buscarClientes } from '@/services/processos.service'
 import { useAuth } from '@/context/AuthContext'
+import { canViewClientes } from '@/lib/rbac'
 
 export function Dashboard() {
   // ── State do drawer ────────────────────────────────────────────────────────
@@ -28,11 +29,13 @@ export function Dashboard() {
   const { data: casosDestacados = [] } = useQuery({
     queryKey: ['dashboard', 'casos-destacados'],
     queryFn: async (): Promise<CasoDetalhado[]> => {
-      const clientesApi = await buscarClientes()
       const map: Record<number, string> = {}
-      clientesApi.forEach(c => {
-        map[c.id] = c.nome_razao_social
-      })
+      if (canViewClientes(user)) {
+        const clientesApi = await buscarClientes()
+        clientesApi.forEach(c => {
+          map[c.id] = c.nome_razao_social
+        })
+      }
       const processosApi = await buscarProcessos(map)
 
       return processosApi.slice(0, 4).map(p => ({

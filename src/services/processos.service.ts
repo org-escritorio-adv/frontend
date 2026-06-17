@@ -106,6 +106,10 @@ export async function atualizarProcesso(
   return response.data
 }
 
+export async function excluirProcesso(id: string): Promise<void> {
+  await api.delete(`/processos/${id}`)
+}
+
 export async function exportarCsvProcessos(): Promise<void> {
   const response = await api.get('/processos/exportar-csv', {
     responseType: 'blob'

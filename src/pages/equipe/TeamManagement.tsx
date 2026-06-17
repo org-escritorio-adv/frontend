@@ -17,13 +17,21 @@ import {
   Globe,
   Download,
   Columns3,
+  Building2,
   ChevronDown,
   Mail,
   Phone,
   BadgeCheck,
   UserX
 } from 'lucide-react'
-import { criarUsuario, excluirUsuario, listarUsuarios } from '@/services/equipe.service'
+import {
+  atualizarPermissoes,
+  criarUsuario,
+  excluirUsuario,
+  listarUsuarios
+} from '@/services/equipe.service'
+import { useAuth } from '@/context/AuthContext'
+import { canManageUsuarios } from '@/lib/rbac'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -49,6 +57,7 @@ const permissoesPadrao: Record<NivelAcesso, Record<string, boolean>> = {
     criarProcessos: true,
     editarProcessos: true,
     excluirProcessos: true,
+    criarClientes: true,
     editarPerfisSite: true,
     publicarConteudo: true,
     exportarDados: true,
@@ -60,6 +69,7 @@ const permissoesPadrao: Record<NivelAcesso, Record<string, boolean>> = {
     criarProcessos: true,
     editarProcessos: true,
     excluirProcessos: false,
+    criarClientes: true,
     editarPerfisSite: false,
     publicarConteudo: false,
     exportarDados: true,
@@ -71,6 +81,7 @@ const permissoesPadrao: Record<NivelAcesso, Record<string, boolean>> = {
     criarProcessos: false,
     editarProcessos: false,
     excluirProcessos: false,
+    criarClientes: false,
     editarPerfisSite: false,
     publicarConteudo: false,
     exportarDados: false,
@@ -94,7 +105,10 @@ function ToggleSwitch({
     <button
       role="switch"
       aria-checked={checked}
-      onClick={() => onChange(!checked)}
+      onClick={e => {
+        e.stopPropagation()
+        onChange(!checked)
+      }}
       className={`
         relative inline-flex items-center w-11 h-6 rounded-full flex-shrink-0
         transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1
@@ -251,6 +265,18 @@ const gruposPermissao: GrupoPermissao[] = [
     ]
   },
   {
+    titulo: 'Clientes',
+    icone: Building2,
+    cor: 'text-emerald-500',
+    itens: [
+      {
+        key: 'criarClientes',
+        label: 'Criar novos clientes',
+        desc: 'Permissão para cadastrar novos clientes no sistema.'
+      }
+    ]
+  },
+  {
     titulo: 'Site Institucional',
     icone: Globe,
     cor: 'text-purple-500',
@@ -308,25 +334,33 @@ function ModalPermissoes({
   const [perms, setPerms] = useState<Record<string, boolean>>({})
   const [salvando, setSalvando] = useState(false)
   const [salvo, setSalvo] = useState(false)
+  const [erro, setErro] = useState('')
 
   useEffect(() => {
     if (usuario) {
       setPerms({ ...usuario.permissoes })
       setSalvo(false)
+      setErro('')
     }
   }, [usuario, isOpen])
 
   const toggle = (key: string) => setPerms(prev => ({ ...prev, [key]: !prev[key] }))
 
-  const handleSalvar = () => {
+  const handleSalvar = async () => {
     if (!usuario) return
     setSalvando(true)
-    setTimeout(() => {
-      setSalvando(false)
+    setErro('')
+    try {
+      const atualizado = await atualizarPermissoes(usuario.id, perms)
       setSalvo(true)
-      onSave(usuario.id, perms)
+      onSave(usuario.id, atualizado.permissoes)
       setTimeout(onClose, 900)
-    }, 700)
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setErro(msg || 'Erro ao salvar permissões. Tente novamente.')
+    } finally {
+      setSalvando(false)
+    }
   }
 
   if (!usuario) return null
@@ -453,6 +487,14 @@ function ModalPermissoes({
           )
         })}
       </div>
+
+      {/* Erro */}
+      {erro && (
+        <div className="flex items-center gap-2 px-6 py-3 bg-red-50 border-t border-red-100 flex-shrink-0">
+          <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+          <p className="text-xs text-red-600">{erro}</p>
+        </div>
+      )}
 
       {/* Rodapé */}
       <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-slate-50/60 flex-shrink-0">
@@ -712,17 +754,21 @@ function ModalAdicionarUsuario({
 
 function perfilToNivel(perfil: string): NivelAcesso {
   const mapa: Record<string, NivelAcesso> = {
-    Admin: 'Admin',
-    Advogado: 'Advogado',
-    Estagiário: 'Estagiário',
-    Estagiario: 'Estagiário'
+    admin: 'Admin',
+    advogado: 'Advogado',
+    estagiario: 'Estagiário',
+    estagiário: 'Estagiário'
   }
-  return mapa[perfil] ?? 'Advogado'
+  const chave = (perfil ?? '').trim().toLowerCase()
+  return mapa[chave] ?? 'Advogado'
 }
 
 // ─── TeamManagement (tela principal) ─────────────────────────────────────────
 
 export function TeamManagement() {
+  const { user } = useAuth()
+  const podeGerenciar = canManageUsuarios(user)
+
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [carregando, setCarregando] = useState(true)
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
@@ -752,12 +798,16 @@ export function TeamManagement() {
               ? u.status
               : 'Ativo') as StatusUsuario,
             avatar: u.avatar,
-            permissoes: { ...permissoesPadrao[nivel] }
+            permissoes:
+              u.permissoes && Object.keys(u.permissoes).length > 0
+                ? u.permissoes
+                : { ...permissoesPadrao[nivel] }
           }
         })
       )
     } catch {
-      // mantém lista vazia em caso de erro de rede
+      // erro ao buscar (ex.: token expirado) — não deixa dados antigos na tela
+      setUsuarios([])
     } finally {
       setCarregando(false)
     }
@@ -816,7 +866,12 @@ export function TeamManagement() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-[#1A2B3C]/40 backdrop-blur-[2px]"
-            onClick={() => { if (!deletando) { setConfirmDelete(null); setErroDelete('') } }}
+            onClick={() => {
+              if (!deletando) {
+                setConfirmDelete(null)
+                setErroDelete('')
+              }
+            }}
           />
           <div
             className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl z-10 p-6"
@@ -844,7 +899,10 @@ export function TeamManagement() {
             )}
             <div className="flex gap-3">
               <button
-                onClick={() => { setConfirmDelete(null); setErroDelete('') }}
+                onClick={() => {
+                  setConfirmDelete(null)
+                  setErroDelete('')
+                }}
                 disabled={deletando}
                 className="flex-1 py-2.5 rounded-lg border border-gray-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
               >
@@ -879,13 +937,15 @@ export function TeamManagement() {
               Controle de acesso baseado em perfis (RBAC) — {usuarios.length} membros cadastrados
             </p>
           </div>
-          <button
-            onClick={() => setAddModal(true)}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[#1A2B3C] text-white rounded-xl hover:bg-[#243447] transition-colors shadow-sm text-sm font-medium flex-shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            Adicionar Usuário
-          </button>
+          {podeGerenciar && (
+            <button
+              onClick={() => setAddModal(true)}
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#1A2B3C] text-white rounded-xl hover:bg-[#243447] transition-colors shadow-sm text-sm font-medium flex-shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              Adicionar Usuário
+            </button>
+          )}
         </div>
 
         {/* ── Chips de estatísticas ────────────────────────────────────────── */}
@@ -982,6 +1042,8 @@ export function TeamManagement() {
                 {!carregando &&
                   usuarios.map(u => {
                     const isHov = hoveredRow === u.id
+                    const isSelf =
+                      !!user?.email && u.email.toLowerCase() === user.email.toLowerCase()
                     const permAtivas = Object.values(u.permissoes).filter(Boolean).length
                     const permTotal = Object.values(u.permissoes).length
 
@@ -1047,31 +1109,44 @@ export function TeamManagement() {
                         {/* Ações */}
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-1">
-                            {/* Botão de permissões (engrenagem) */}
-                            <button
-                              onClick={() => abrirPermissoes(u)}
-                              title="Editar Permissões"
-                              className={`
-                              flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all
-                              ${
-                                isHov
-                                  ? 'bg-[#1A2B3C] text-white shadow-sm'
-                                  : 'text-slate-400 hover:text-[#1A2B3C] hover:bg-slate-100'
-                              }
-                            `}
-                            >
-                              <Settings2 className="w-3.5 h-3.5" />
-                              Permissões
-                            </button>
+                            {podeGerenciar ? (
+                              <>
+                                {/* Botão de permissões (engrenagem) */}
+                                <button
+                                  onClick={() => !isSelf && abrirPermissoes(u)}
+                                  disabled={isSelf}
+                                  title={
+                                    isSelf
+                                      ? 'Você não pode editar suas próprias permissões'
+                                      : 'Editar Permissões'
+                                  }
+                                  className={`
+                                  flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all
+                                  ${
+                                    isSelf
+                                      ? 'text-slate-200 cursor-not-allowed'
+                                      : isHov
+                                        ? 'bg-[#1A2B3C] text-white shadow-sm'
+                                        : 'text-slate-400 hover:text-[#1A2B3C] hover:bg-slate-100'
+                                  }
+                                `}
+                                >
+                                  <Settings2 className="w-3.5 h-3.5" />
+                                  Permissões
+                                </button>
 
-                            {/* Excluir */}
-                            <button
-                              onClick={() => setConfirmDelete(u.id)}
-                              title="Remover Usuário"
-                              className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                                {/* Excluir */}
+                                <button
+                                  onClick={() => setConfirmDelete(u.id)}
+                                  title="Remover Usuário"
+                                  className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-xs text-slate-300">Somente leitura</span>
+                            )}
                           </div>
                         </td>
                       </tr>

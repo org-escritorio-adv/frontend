@@ -76,6 +76,9 @@ export interface CurrentUser {
   name: string
   email: string
   role: 'admin' | 'advogado' | 'estagiario'
+  /** Override de permissões individuais carregado de /usuarios/me; ausente
+   * enquanto o perfil ainda não terminou de carregar do backend. */
+  permissoes?: Record<string, boolean>
 }
 
 export function getCurrentUser(): CurrentUser | null {

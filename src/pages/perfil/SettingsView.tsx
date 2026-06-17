@@ -1,20 +1,5 @@
 import { useState, useEffect } from 'react'
-import {
-  X,
-  RefreshCw,
-  CheckCircle,
-  Bell,
-  Shield,
-  Link2,
-  Download,
-  Globe,
-  Clock,
-  Wifi,
-  ChevronRight,
-  AlertCircle,
-  Zap,
-  Moon
-} from 'lucide-react'
+import { X, CheckCircle, Bell, Shield, Download, Globe, ChevronRight, Moon } from 'lucide-react'
 
 function useDarkMode(): [boolean, (v: boolean) => void] {
   const [dark, setDark] = useState(() => localStorage.getItem('darkMode') === 'true')
@@ -246,159 +231,9 @@ function ModalNotificacoes({ isOpen, onClose }: { isOpen: boolean; onClose: () =
   )
 }
 
-// ─── Modal: Integração API ──────────────────────────────────────────────
-
-function ModalDataJud({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const [sincronizando, setSincronizando] = useState(false)
-  const [ultimaSync, setUltimaSync] = useState('Hoje às 08:00')
-  const [sincronizacoes, setSincronizacoes] = useState(47)
-  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'done'>('idle')
-
-  const handleSincronizar = () => {
-    if (sincronizando) return
-    setSincronizando(true)
-    setSyncStatus('syncing')
-    setTimeout(() => {
-      const agora = new Date()
-      setUltimaSync(
-        `Hoje às ${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}`
-      )
-      setSincronizacoes(n => n + 3)
-      setSincronizando(false)
-      setSyncStatus('done')
-      setTimeout(() => setSyncStatus('idle'), 3000)
-    }, 2200)
-  }
-
-  return (
-    <ModalBase isOpen={isOpen} onClose={onClose} maxWidth="max-w-[440px]">
-      {/* Cabeçalho */}
-      <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#1A2B3C]/8 flex items-center justify-center">
-            <Link2 className="w-4 h-4 text-[#1A2B3C]" />
-          </div>
-          <div>
-            <h4 className="text-[#1A2B3C] font-semibold">Integração DataJud</h4>
-            <p className="text-xs text-slate-400">Status da API e controles de sincronização</p>
-          </div>
-        </div>
-        <button
-          onClick={onClose}
-          className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-[#1A2B3C] hover:bg-slate-100 transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-
-      <div className="px-6 py-5 space-y-5">
-        {/* Status da conexão */}
-        <div className="flex items-center justify-between p-4 rounded-xl border border-emerald-100 bg-emerald-50">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
-              <Wifi className="w-4 h-4 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-emerald-700">API Conectada</p>
-              <p className="text-xs text-emerald-500">Sincronização automática ativa</p>
-            </div>
-          </div>
-          <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Online
-          </span>
-        </div>
-
-        {/* Estatísticas */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-gray-100">
-            <div className="flex items-center gap-2 mb-1">
-              <Clock className="w-3.5 h-3.5 text-slate-400" />
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                Última Sync
-              </span>
-            </div>
-            <p className="text-sm font-semibold text-[#1A2B3C]">{ultimaSync}</p>
-          </div>
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-gray-100">
-            <div className="flex items-center gap-2 mb-1">
-              <Zap className="w-3.5 h-3.5 text-slate-400" />
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                Processos
-              </span>
-            </div>
-            <p className="text-sm font-semibold text-[#1A2B3C]">{sincronizacoes} sincronizados</p>
-          </div>
-        </div>
-
-        {/* Chave de API (mascarada) */}
-        <div>
-          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
-            Chave de API
-          </p>
-          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-slate-50 border border-gray-100">
-            <span className="flex-1 font-mono text-sm text-slate-500 tracking-widest">
-              ••••••••••••••••••••••••
-            </span>
-            <button className="text-xs text-[#D4AF37] font-medium hover:underline flex-shrink-0">
-              Renovar
-            </button>
-          </div>
-        </div>
-
-        {/* Feedback do status de sync */}
-        {syncStatus === 'done' && (
-          <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-100">
-            <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-            <p className="text-sm text-emerald-700 font-medium">
-              Sincronização concluída! {sincronizacoes} processos atualizados.
-            </p>
-          </div>
-        )}
-
-        {/* Botão Sincronizar Agora */}
-        <button
-          onClick={handleSincronizar}
-          disabled={sincronizando}
-          className={`
-            w-full flex items-center justify-center gap-2.5 py-3 rounded-xl text-sm font-semibold transition-all shadow-sm
-            ${
-              sincronizando
-                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                : 'bg-[#1A2B3C] text-white hover:bg-[#243447] hover:shadow-md'
-            }
-          `}
-        >
-          <RefreshCw className={`w-4 h-4 ${sincronizando ? 'animate-spin' : ''}`} />
-          {sincronizando ? 'Sincronizando com DataJud…' : 'Sincronizar Agora'}
-        </button>
-
-        {/* Aviso */}
-        <div className="flex items-start gap-2 text-[11px] text-slate-400">
-          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-          <p>
-            A sincronização manual pode levar até 30 segundos dependendo do número de processos. O
-            sistema também sincroniza automaticamente a cada 6 horas.
-          </p>
-        </div>
-      </div>
-
-      {/* Rodapé */}
-      <div className="px-6 py-4 border-t border-gray-100 bg-slate-50/60">
-        <button
-          onClick={onClose}
-          className="w-full py-2.5 rounded-lg border border-gray-200 text-sm text-slate-600 hover:bg-slate-100 transition-colors"
-        >
-          Fechar
-        </button>
-      </div>
-    </ModalBase>
-  )
-}
-
 // ─── SettingsView (principal) ─────────────────────────────────────────────────
 
-type ModalAberto = 'notificacoes' | 'datajud' | null
+type ModalAberto = 'notificacoes' | null
 
 export function SettingsView() {
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
@@ -432,14 +267,6 @@ export function SettingsView() {
       badge: { text: 'Ativo', color: 'bg-emerald-100 text-emerald-700' }
     },
     {
-      id: 'datajud',
-      label: 'Integração DataJud',
-      desc: 'API conectada · Sincronização automática ativa',
-      icon: Link2,
-      modal: 'datajud',
-      badge: { text: 'Conectado', color: 'bg-blue-100 text-blue-700' }
-    },
-    {
       id: 'exportacao',
       label: 'Exportação de dados',
       desc: 'Baixe um arquivo CSV com todos os seus processos',
@@ -459,7 +286,6 @@ export function SettingsView() {
     <>
       {/* ── Modais ──────────────────────────────────────────────────────────── */}
       <ModalNotificacoes isOpen={modalAberto === 'notificacoes'} onClose={fecharModal} />
-      <ModalDataJud isOpen={modalAberto === 'datajud'} onClose={fecharModal} />
 
       {/* ── Conteúdo ────────────────────────────────────────────────────────── */}
       <div className="p-8 max-w-2xl mx-auto">
