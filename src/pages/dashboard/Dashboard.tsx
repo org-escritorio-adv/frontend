@@ -34,8 +34,9 @@ export function Dashboard() {
         map[c.id] = c.nome_razao_social
       })
       const processosApi = await buscarProcessos(map)
+      const favoritos = processosApi.filter(p => p.favorito)
 
-      return processosApi.slice(0, 4).map(p => ({
+      return favoritos.slice(0, 4).map(p => ({
         id: p.id,
         cnj: p.cnj,
         cliente: p.cliente,
