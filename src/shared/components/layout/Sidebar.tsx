@@ -1,5 +1,6 @@
 import { LayoutDashboard, Briefcase, Building2, Settings, Columns3, Users } from 'lucide-react'
 import { AppLogo } from '@/shared/components/layout/AppLogo'
+import { useAuth } from '@/context/AuthContext'
 
 interface SidebarProps {
   activeView: string
@@ -7,6 +8,11 @@ interface SidebarProps {
 }
 
 export function Sidebar({ activeView, onViewChange }: SidebarProps) {
+  const { user } = useAuth()
+  const iniciais = user?.name
+    ? user.name.split(' ').filter(Boolean).slice(0, 2).map(n => n[0].toUpperCase()).join('')
+    : '?'
+
   const menuItems = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', short: 'Início' },
     { id: 'processos', icon: Columns3, label: 'Casos (Demandas)', short: 'Casos' },
@@ -63,7 +69,7 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
 
       {/* Bottom avatar */}
       <div className="mt-4 w-9 h-9 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37]/40 flex items-center justify-center">
-        <span className="text-[#D4AF37] text-xs font-bold">CS</span>
+        <span className="text-[#D4AF37] text-xs font-bold">{iniciais}</span>
       </div>
     </div>
   )
