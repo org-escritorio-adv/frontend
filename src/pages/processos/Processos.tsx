@@ -97,9 +97,11 @@ type DataJudStep = 'form' | 'preview' | 'success'
 
 interface ProcessosProps {
   onViewProcess: (id: string) => void
+  autoEditProcessoId?: string | null
+  onEditOpened?: () => void
 }
 
-export function Processos({ onViewProcess }: ProcessosProps) {
+export function Processos({ onViewProcess, autoEditProcessoId, onEditOpened }: ProcessosProps) {
   const [query, setQuery] = useState('')
   const [syncing, setSyncing] = useState(false)
   const [syncError, setSyncError] = useState('')
