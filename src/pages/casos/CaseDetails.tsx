@@ -13,6 +13,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { buscarProcessoPorId, exportarPdfProcesso } from '@/services/processos.service'
+import { ReactElement, JSXElementConstructor, ReactNode, ReactPortal, Key } from 'react'
 
 interface CaseDetailsProps {
   onBack?: () => void
@@ -168,10 +169,12 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
   const isAtivo =
     processo.status.toLowerCase() === 'ativo' || processo.status.toLowerCase() === 'ativa'
 
-  const movimentacoes = (processo.movimentacoes ?? []).map(m => ({
-    ...m,
-    tipo: inferirTipo(m.descricao)
-  }))
+  const movimentacoes = (processo.movimentacoes ?? [])
+    .map((m: { descricao: string; data: string }) => ({
+      ...m,
+      tipo: inferirTipo(m.descricao) as TipoMovimentacao
+    }))
+    .sort((a: { data: string | number | Date }, b: { data: string | number | Date }) => new Date(b.data).getTime() - new Date(a.data).getTime())
 
   /* ── Render ──────────────────────────────────────────────────────────────── */
   return (
@@ -277,7 +280,7 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
             <div className="absolute left-5 top-0 bottom-0 w-px bg-gray-100" />
 
             <div className="space-y-6">
-              {movimentacoes.map((mov, i) => (
+              {movimentacoes.map((mov: { tipo: TipoMovimentacao; data: string; descricao: string }, i: Key | null | undefined) => (
                 <div key={i} className="flex gap-4 relative">
                   <div className="flex-shrink-0 w-10 h-10 bg-white border border-gray-100 rounded-full flex items-center justify-center shadow-sm z-10">
                     {getIconeMovimentacao(mov.tipo)}
