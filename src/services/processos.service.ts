@@ -74,10 +74,10 @@ export async function buscarProcessos(clientesMap: Record<number, string>): Prom
       p.status === 'arquivado'
         ? 'Arquivado'
         : p.status === 'em_recurso'
-        ? 'Em Recurso'
-        : p.status === 'suspenso'
-        ? 'Suspenso'
-        : 'Ativo',
+          ? 'Em Recurso'
+          : p.status === 'suspenso'
+            ? 'Suspenso'
+            : 'Ativo',
     favorito: p.favorito,
     valorCausa: 'R$ 0,00',
     casoVinculado: '-'
@@ -113,6 +113,10 @@ export async function atualizarProcesso(
 ): Promise<ProcessoAPI> {
   const response = await api.patch(`/processos/${id}`, payload)
   return response.data
+}
+
+export async function excluirProcesso(id: string): Promise<void> {
+  await api.delete(`/processos/${id}`)
 }
 
 export async function exportarCsvProcessos(): Promise<void> {

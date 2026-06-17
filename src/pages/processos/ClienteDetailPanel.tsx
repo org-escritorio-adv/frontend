@@ -45,7 +45,9 @@ export function ClienteDetailPanel({
   if (!isOpen || !cliente) return null
 
   const ativos = processos.filter(p => p.status === 'ativo' || p.status === 'Ativo').length
-  const arquivados = processos.filter(p => p.status === 'arquivado' || p.status === 'Arquivado').length
+  const arquivados = processos.filter(
+    p => p.status === 'arquivado' || p.status === 'Arquivado'
+  ).length
 
   return (
     <>
@@ -79,9 +81,7 @@ export function ClienteDetailPanel({
             <h3 className="text-[#1A2B3C] text-lg font-bold leading-snug truncate">
               {cliente.nome_razao_social}
             </h3>
-            <p className="text-xs text-slate-500 font-mono mt-1">
-              {cliente.cpf_cnpj}
-            </p>
+            <p className="text-xs text-slate-500 font-mono mt-1">{cliente.cpf_cnpj}</p>
           </div>
           <button
             onClick={onClose}
@@ -93,15 +93,18 @@ export function ClienteDetailPanel({
 
         {/* Corpo com scroll */}
         <div className="flex-1 overflow-y-auto">
-          
           {/* Métricas */}
           <div className="grid grid-cols-2 gap-4 p-6">
             <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
-              <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-1">Processos Ativos</p>
+              <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-1">
+                Processos Ativos
+              </p>
               <p className="text-2xl font-bold text-emerald-700">{ativos}</p>
             </div>
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Arquivados</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                Arquivados
+              </p>
               <p className="text-2xl font-bold text-slate-700">{arquivados}</p>
             </div>
           </div>
@@ -120,7 +123,9 @@ export function ClienteDetailPanel({
                 </div>
                 <div>
                   <p className="text-[11px] text-slate-400">Telefone / Celular</p>
-                  <p className="text-sm font-medium text-[#1A2B3C]">{cliente.telefone || 'Não informado'}</p>
+                  <p className="text-sm font-medium text-[#1A2B3C]">
+                    {cliente.telefone || 'Não informado'}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-3 p-3 rounded-xl bg-white border border-gray-100 shadow-sm">
@@ -163,9 +168,11 @@ export function ClienteDetailPanel({
                       <span className="text-xs font-mono font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded">
                         {proc.numero_cnj}
                       </span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide
                         ${proc.status?.toLowerCase() === 'ativo' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}
-                      `}>
+                      `}
+                      >
                         {proc.status}
                       </span>
                     </div>
@@ -180,7 +187,6 @@ export function ClienteDetailPanel({
               </div>
             )}
           </div>
-
         </div>
       </aside>
     </>
