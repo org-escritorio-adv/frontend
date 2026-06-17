@@ -56,6 +56,7 @@ export async function buscarProcessos(clientesMap: Record<number, string>): Prom
   return data.map(p => ({
     id: String(p.id),
     cnj: p.numero_cnj,
+    clienteId: p.cliente_id,
     cliente: p.cliente_id
       ? (clientesMap[p.cliente_id] ?? `Cliente #${p.cliente_id}`)
       : 'Sem Cliente',
@@ -69,7 +70,15 @@ export async function buscarProcessos(clientesMap: Record<number, string>): Prom
             descricao: p.movimentacoes[0].descricao
           }
         : { data: '-', descricao: 'Sem movimentações' },
-    status: p.status === 'arquivado' ? 'Arquivado' : 'Ativo',
+    status:
+      p.status === 'arquivado'
+        ? 'Arquivado'
+        : p.status === 'em_recurso'
+        ? 'Em Recurso'
+        : p.status === 'suspenso'
+        ? 'Suspenso'
+        : 'Ativo',
+    favorito: p.favorito,
     valorCausa: 'R$ 0,00',
     casoVinculado: '-'
   }))
