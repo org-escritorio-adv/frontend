@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
 import {
   Search,
@@ -16,12 +17,14 @@ import {
   ArrowUpRight,
   Database,
   CheckCircle,
-  Pencil
+  Pencil,
+  Star
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/components/ui/dialog'
 import {
   buscarClientes,
   buscarProcessos,
+  buscarProcessosRaw,
   buscarProcessoPorId,
   criarProcesso,
   atualizarProcesso,
@@ -39,6 +42,7 @@ import {
   type DataJudImportarResponse
 } from '@/services/datajud.service'
 import { NovoClienteModal } from '@/pages/casos/NovoClienteModal'
+import { ClienteDetailPanel } from './ClienteDetailPanel'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -97,9 +101,12 @@ type DataJudStep = 'form' | 'preview' | 'success'
 
 interface ProcessosProps {
   onViewProcess: (id: string) => void
+  autoEditProcessoId?: string | null
+  onEditOpened?: () => void
 }
 
-export function Processos({ onViewProcess }: ProcessosProps) {
+export function Processos({ onViewProcess, autoEditProcessoId, onEditOpened }: ProcessosProps) {
+  const queryClient = useQueryClient()
   const [query, setQuery] = useState('')
   const [syncing, setSyncing] = useState(false)
   const [syncError, setSyncError] = useState('')
@@ -137,6 +144,12 @@ export function Processos({ onViewProcess }: ProcessosProps) {
   const [editSubmitting, setEditSubmitting] = useState(false)
   const [editError, setEditError] = useState('')
 
+  // Cliente Panel state
+  const [isClientePanelOpen, setIsClientePanelOpen] = useState(false)
+  const [selectedCliente, setSelectedCliente] = useState<ClienteAPI | null>(null)
+  const [processosDoCliente, setProcessosDoCliente] = useState<ProcessoAPI[]>([])
+  const [isBuscarClienteModalOpen, setIsBuscarClienteModalOpen] = useState(false)
+  const [buscarClienteTermo, setBuscarClienteTermo] = useState('')
   // DataJud tab state
   const [datajudStep, setDatajudStep] = useState<DataJudStep>('form')
   const [datajudForm, setDatajudForm] = useState({ cnj: '', tribunal: 'tjdft' })
@@ -359,6 +372,34 @@ export function Processos({ onViewProcess }: ProcessosProps) {
     }
   }
 
+  const handleToggleFavorito = async (id: string, atual: boolean, e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await atualizarProcesso(id, { favorito: !atual })
+      loadData()
+      queryClient.invalidateQueries({ queryKey: ['dashboard', 'casos-destacados'] })
+    } catch (error) {
+      console.error('Erro ao alternar favorito', error)
+    }
+  }
+
+  const handleOpenClientePanel = async (clienteId: number | null, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!clienteId) return
+    const cli = clientes.find(c => c.id === clienteId)
+    if (cli) {
+      try {
+        const pRaw = await buscarProcessosRaw()
+        const pCli = pRaw.filter(p => p.cliente_id === clienteId)
+        setProcessosDoCliente(pCli)
+        setSelectedCliente(cli)
+        setIsClientePanelOpen(true)
+      } catch(err) {
+        console.error(err)
+      }
+    }
+  }
+
   // ── Derived values ────────────────────────────────────────────────────────
 
   const totalAtivos = processos.filter(p => p.status === 'Ativo').length
@@ -415,7 +456,14 @@ export function Processos({ onViewProcess }: ProcessosProps) {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full bg-slate-50">
+    <div className="flex flex-col h-full bg-slate-50 relative">
+      <ClienteDetailPanel
+        isOpen={isClientePanelOpen}
+        onClose={() => setIsClientePanelOpen(false)}
+        cliente={selectedCliente}
+        processos={processosDoCliente}
+        onViewProcesso={onViewProcess}
+      />
       {/* ── Top bar ──────────────────────────────────────────────────────────── */}
       <div className="bg-white border-b border-gray-100 px-8 py-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -443,6 +491,14 @@ export function Processos({ onViewProcess }: ProcessosProps) {
             >
               <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin text-[#D4AF37]' : ''}`} />
               {syncing ? 'Sincronizando…' : 'Sincronizar DataJud'}
+            </button>
+
+            <button
+              onClick={() => setIsBuscarClienteModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 text-sm text-[#1A2B3C] bg-white hover:bg-slate-50 hover:border-slate-300 transition-all font-medium"
+            >
+              <Search className="w-4 h-4" />
+              Buscar Cliente
             </button>
 
             <button
@@ -614,7 +670,10 @@ export function Processos({ onViewProcess }: ProcessosProps) {
                   </div>
 
                   <div className="flex flex-col justify-center min-w-0 pr-2">
-                    <span className="text-sm font-semibold text-[#1A2B3C] truncate">
+                    <span 
+                      onClick={(e) => handleOpenClientePanel(proc.clienteId, e)}
+                      className={`text-sm font-semibold truncate transition-colors ${proc.clienteId ? 'text-[#1A2B3C] hover:text-[#D4AF37] hover:underline cursor-pointer' : 'text-[#1A2B3C]'}`}
+                    >
                       {proc.cliente}
                     </span>
                     <span className="text-xs text-slate-400 truncate mt-0.5">
@@ -648,6 +707,16 @@ export function Processos({ onViewProcess }: ProcessosProps) {
                   </div>
 
                   <div className="flex items-center justify-end gap-1.5">
+                    <button
+                      onClick={e => handleToggleFavorito(proc.id, proc.favorito, e)}
+                      title={proc.favorito ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                      className={`
+                        flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-all
+                        ${proc.favorito ? 'text-[#D4AF37] hover:bg-[#D4AF37]/10' : isHovered ? 'text-slate-300 hover:text-slate-500 hover:bg-slate-100' : 'text-transparent'}
+                      `}
+                    >
+                      <Star className={`w-4 h-4 ${proc.favorito ? 'fill-[#D4AF37]' : ''}`} />
+                    </button>
                     <button
                       onClick={e => handleOpenEdit(proc.id, e)}
                       title="Editar processo"
@@ -1276,6 +1345,50 @@ export function Processos({ onViewProcess }: ProcessosProps) {
           }
         }}
       />
+
+      <Dialog open={isBuscarClienteModalOpen} onOpenChange={setIsBuscarClienteModalOpen}>
+        <DialogContent className="max-w-md bg-white border border-slate-100 shadow-xl p-0 overflow-hidden flex flex-col max-h-[85vh]">
+          <DialogHeader className="bg-slate-50 border-b border-gray-100 px-6 py-4 flex-shrink-0">
+            <DialogTitle className="text-lg text-[#1A2B3C] font-semibold flex items-center gap-2">
+              <Search className="w-5 h-5 text-[#D4AF37]" />
+              Buscar Cliente
+            </DialogTitle>
+          </DialogHeader>
+          <div className="px-6 pt-4 flex-shrink-0">
+            <input
+              type="text"
+              placeholder="Digite o nome, CPF ou CNPJ..."
+              value={buscarClienteTermo}
+              onChange={(e) => setBuscarClienteTermo(e.target.value)}
+              className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]"
+            />
+          </div>
+          <div className="p-6 overflow-y-auto flex flex-col gap-2">
+            {clientes.length === 0 ? (
+              <p className="text-sm text-slate-500">Nenhum cliente cadastrado ainda.</p>
+            ) : (
+              clientes
+                .filter(c => 
+                  c.nome_razao_social.toLowerCase().includes(buscarClienteTermo.toLowerCase()) || 
+                  (c.cpf_cnpj && c.cpf_cnpj.includes(buscarClienteTermo))
+                )
+                .map(c => (
+                <div 
+                  key={c.id} 
+                  onClick={(e) => {
+                    setIsBuscarClienteModalOpen(false)
+                    handleOpenClientePanel(c.id, e as unknown as React.MouseEvent)
+                  }}
+                  className="p-3 border border-slate-100 rounded-lg hover:border-[#D4AF37]/50 hover:bg-slate-50 cursor-pointer transition-colors"
+                >
+                  <p className="text-sm font-semibold text-[#1A2B3C]">{c.nome_razao_social}</p>
+                  <p className="text-xs text-slate-400 font-mono mt-0.5">{c.cpf_cnpj}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
