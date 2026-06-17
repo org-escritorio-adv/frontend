@@ -1,0 +1,4 @@
+ID,Número CNJ,Tribunal,Partes,Status,Favorito
+3,50002077820258130557,TJMG,,ativo,False
+2,11111111111111111111,TJMG,teste vs teste2,ativo,True
+1,00000000000000000000,TJSP,eu vs testeee,ativo,True
