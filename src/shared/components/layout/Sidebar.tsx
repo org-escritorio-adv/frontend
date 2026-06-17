@@ -11,7 +11,12 @@ interface SidebarProps {
 export function Sidebar({ activeView, onViewChange }: SidebarProps) {
   const { user } = useAuth()
   const iniciais = user?.name
-    ? user.name.split(' ').filter(Boolean).slice(0, 2).map(n => n[0].toUpperCase()).join('')
+    ? user.name
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(n => n[0].toUpperCase())
+        .join('')
     : '?'
 
   const menuItems = [

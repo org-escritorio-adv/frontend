@@ -16,8 +16,11 @@ import {
   ChevronDown,
   Inbox,
   Clock,
-  Phone
+  Phone,
+  ShieldAlert
 } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
+import { canAccessCMS } from '@/lib/rbac'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -408,6 +411,8 @@ function ModalResponderLead({ isOpen, lead, onClose }: ModalResponderLeadProps) 
 // ─── InstitutionalCMS ─────────────────────────────────────────────────────────
 
 export function InstitutionalCMS() {
+  const { user } = useAuth()
+
   // ── Dados dos advogados ────────────────────────────────────────────────────
   const [advogados, setAdvogados] = useState<Advogado[]>([
     {
@@ -489,6 +494,22 @@ export function InstitutionalCMS() {
     isOpen: boolean
     lead: Lead | null
   }>({ isOpen: false, lead: null })
+
+  if (!canAccessCMS(user)) {
+    return (
+      <div className="flex items-center justify-center h-full min-h-[400px] p-8">
+        <div className="flex flex-col items-center gap-3 text-center max-w-sm">
+          <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center">
+            <ShieldAlert className="w-7 h-7 text-amber-500" />
+          </div>
+          <h3 className="text-[#1A2B3C] font-semibold">Acesso restrito</h3>
+          <p className="text-sm text-slate-500">
+            O CMS do site institucional é exclusivo para administradores.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 

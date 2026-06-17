@@ -13,8 +13,18 @@ import { Clientes } from '@/pages/clientes/Clientes'
 
 type ViewId = 'dashboard' | 'processos' | 'cases' | 'clientes' | 'cms' | 'team' | 'settings' | 'profile'
 
+const SESSION_KEY = 'dashboardActiveView'
+
 export function DashboardShell() {
-  const [activeView, setActiveView] = useState<ViewId>('dashboard')
+  const [activeView, setActiveViewState] = useState<ViewId>(() => {
+    const saved = sessionStorage.getItem(SESSION_KEY) as ViewId | null
+    return saved ?? 'dashboard'
+  })
+
+  const setActiveView = (v: ViewId) => {
+    sessionStorage.setItem(SESSION_KEY, v)
+    setActiveViewState(v)
+  }
 
   /* State for notification → kanban expand */
   const [pendingExpandId, setPendingExpandId] = useState<string | null>(null)
@@ -22,10 +32,19 @@ export function DashboardShell() {
   /* State for DataJud: null = list, string = detail of that process id */
   const [selectedProcessoId, setSelectedProcessoId] = useState<string | null>(null)
 
+  /* Process ID pending edit — set by KanbanBoard, consumed by Processos */
+  const [pendingEditProcessoId, setPendingEditProcessoId] = useState<string | null>(null)
+
   /** Called when user clicks a notification in TopBar */
   const handleNotificationClick = (processId: string) => {
     setActiveView('processos')
     setPendingExpandId(processId)
+  }
+
+  /** Called from KanbanBoard "Editar Processo" button */
+  const handleEditProcesso = (processoId: string) => {
+    setPendingEditProcessoId(processoId)
+    setActiveView('cases')
   }
 
   const renderView = () => {
@@ -45,6 +64,7 @@ export function DashboardShell() {
           <KanbanBoard
             initialExpandedId={pendingExpandId}
             onClearExpandedId={() => setPendingExpandId(null)}
+            onEditProcesso={handleEditProcesso}
           />
         )
 
@@ -58,7 +78,13 @@ export function DashboardShell() {
             />
           )
         }
-        return <Processos onViewProcess={id => setSelectedProcessoId(id)} />
+        return (
+          <Processos
+            onViewProcess={id => setSelectedProcessoId(id)}
+            autoEditProcessoId={pendingEditProcessoId}
+            onEditOpened={() => setPendingEditProcessoId(null)}
+          />
+        )
 
       case 'clientes':
         return <Clientes />

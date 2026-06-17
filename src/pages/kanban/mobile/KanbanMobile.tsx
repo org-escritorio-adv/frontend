@@ -17,6 +17,8 @@ import {
   Filter,
   SlidersHorizontal
 } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
+import { canEditProcessos } from '@/lib/rbac'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -273,7 +275,15 @@ const initialColumns: KanbanColumn[] = [
 
 // ─── Bottom Sheet: Detalhes do Caso ───────────────────────────────────────────
 
-function CaseDetailBottomSheet({ card, onClose }: { card: KanbanCard; onClose: () => void }) {
+function CaseDetailBottomSheet({
+  card,
+  onClose,
+  podeEditar
+}: {
+  card: KanbanCard
+  onClose: () => void
+  podeEditar: boolean
+}) {
   const historyBg: Record<HistoryEvent['type'], string> = {
     criado: 'bg-blue-100',
     atualizado: 'bg-amber-100',
@@ -464,12 +474,14 @@ function CaseDetailBottomSheet({ card, onClose }: { card: KanbanCard; onClose: (
         </div>
 
         {/* Footer */}
-        <div className="border-t border-slate-200 px-5 py-3 flex items-center gap-3 flex-shrink-0 bg-white">
-          <button className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#1A2B3C] text-white text-sm font-medium rounded-xl hover:bg-[#243447] transition-colors">
-            <Edit3 className="w-4 h-4" />
-            Editar Caso
-          </button>
-        </div>
+        {podeEditar && (
+          <div className="border-t border-slate-200 px-5 py-3 flex items-center gap-3 flex-shrink-0 bg-white">
+            <button className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#1A2B3C] text-white text-sm font-medium rounded-xl hover:bg-[#243447] transition-colors">
+              <Edit3 className="w-4 h-4" />
+              Editar Caso
+            </button>
+          </div>
+        )}
       </div>
     </>
   )
@@ -478,6 +490,9 @@ function CaseDetailBottomSheet({ card, onClose }: { card: KanbanCard; onClose: (
 // ─── Main KanbanMobile ───────────────────────────────────────────────────────
 
 export function KanbanMobile() {
+  const { user } = useAuth()
+  const podeEditar = canEditProcessos(user)
+
   const [columns] = useState<KanbanColumn[]>(initialColumns)
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string>('backlog')
@@ -498,7 +513,11 @@ export function KanbanMobile() {
   return (
     <>
       {selectedCard && (
-        <CaseDetailBottomSheet card={selectedCard} onClose={() => setSelectedCardId(null)} />
+        <CaseDetailBottomSheet
+          card={selectedCard}
+          onClose={() => setSelectedCardId(null)}
+          podeEditar={podeEditar}
+        />
       )}
 
       <div className="min-h-screen bg-slate-50 px-4 py-6">
@@ -518,10 +537,12 @@ export function KanbanMobile() {
             <SlidersHorizontal className="w-3.5 h-3.5" />
             Ordenar
           </button>
-          <button className="flex items-center justify-center gap-1.5 px-4 py-2 bg-[#1A2B3C] text-white text-sm rounded-lg hover:bg-[#243447] transition-colors font-medium">
-            <Plus className="w-4 h-4" />
-            Novo
-          </button>
+          {podeEditar && (
+            <button className="flex items-center justify-center gap-1.5 px-4 py-2 bg-[#1A2B3C] text-white text-sm rounded-lg hover:bg-[#243447] transition-colors font-medium">
+              <Plus className="w-4 h-4" />
+              Novo
+            </button>
+          )}
         </div>
 
         {/* Tabs das colunas */}

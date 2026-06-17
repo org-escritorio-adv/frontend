@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
 import {
   Search,
@@ -16,15 +17,20 @@ import {
   ArrowUpRight,
   Database,
   CheckCircle,
-  Pencil
+  Pencil,
+  Trash2,
+  AlertTriangle,
+  Star
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/components/ui/dialog'
 import {
   buscarClientes,
   buscarProcessos,
+  buscarProcessosRaw,
   buscarProcessoPorId,
   criarProcesso,
   atualizarProcesso,
+  excluirProcesso,
   exportarCsvProcessos,
   type Processo,
   type ProcessoAPI,
@@ -34,10 +40,21 @@ import {
 import {
   consultarDataJud,
   importarDataJud,
+  sincronizarTodosProcessos,
   type DataJudProcesso,
   type DataJudImportarResponse
 } from '@/services/datajud.service'
 import { NovoClienteModal } from '@/pages/casos/NovoClienteModal'
+import { useAuth } from '@/context/AuthContext'
+import {
+  canCreateProcessos,
+  canCreateClientes,
+  canEditProcessos,
+  canExportDados,
+  canViewClientes,
+  canDeleteProcessos
+} from '@/lib/rbac'
+import { ClienteDetailPanel } from './ClienteDetailPanel'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -78,6 +95,17 @@ function parseDateAjuizamento(valor: string | null): string {
   return `${valor.slice(6, 8)}/${valor.slice(4, 6)}/${valor.slice(0, 4)}`
 }
 
+// Formata o timestamp ISO retornado pelo backend para o padrão "dd/mm/aaaa às hh:mm".
+// Se ainda não houver nenhum valor (ex: antes da primeira sincronização da sessão),
+// mostra um aviso claro em vez de uma data falsa.
+function formatarDataHora(iso: string | null): string {
+  if (!iso) return 'ainda não sincronizado'
+  const d = new Date(iso)
+  const data = d.toLocaleDateString('pt-BR')
+  const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  return `${data} às ${hora}`
+}
+
 type ModalTab = 'datajud' | 'manual'
 type DataJudStep = 'form' | 'preview' | 'success'
 
@@ -85,11 +113,23 @@ type DataJudStep = 'form' | 'preview' | 'success'
 
 interface ProcessosProps {
   onViewProcess: (id: string) => void
+  autoEditProcessoId?: string | null
+  onEditOpened?: () => void
 }
 
-export function Processos({ onViewProcess }: ProcessosProps) {
+export function Processos({ onViewProcess, autoEditProcessoId, onEditOpened }: ProcessosProps) {
+  const { user } = useAuth()
+  const podeCriar = canCreateProcessos(user)
+  const podeCriarClientes = canCreateClientes(user)
+  const podeEditar = canEditProcessos(user)
+  const podeExportar = canExportDados(user)
+  const podeVerClientes = canViewClientes(user)
+  const podeExcluir = canDeleteProcessos(user)
+  const queryClient = useQueryClient()
   const [query, setQuery] = useState('')
   const [syncing, setSyncing] = useState(false)
+  const [syncError, setSyncError] = useState('')
+  const [ultimaSincronizacao, setUltimaSincronizacao] = useState<string | null>(null)
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
 
   // API State
@@ -123,6 +163,17 @@ export function Processos({ onViewProcess }: ProcessosProps) {
   const [editSubmitting, setEditSubmitting] = useState(false)
   const [editError, setEditError] = useState('')
 
+  // Delete confirmation state
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; cnj: string } | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+
+  // Cliente Panel state
+  const [isClientePanelOpen, setIsClientePanelOpen] = useState(false)
+  const [selectedCliente, setSelectedCliente] = useState<ClienteAPI | null>(null)
+  const [processosDoCliente, setProcessosDoCliente] = useState<ProcessoAPI[]>([])
+  const [isBuscarClienteModalOpen, setIsBuscarClienteModalOpen] = useState(false)
+  const [buscarClienteTermo, setBuscarClienteTermo] = useState('')
   // DataJud tab state
   const [datajudStep, setDatajudStep] = useState<DataJudStep>('form')
   const [datajudForm, setDatajudForm] = useState({ cnj: '', tribunal: 'tjdft' })
@@ -135,6 +186,7 @@ export function Processos({ onViewProcess }: ProcessosProps) {
   const [datajudError, setDatajudError] = useState('')
 
   const fetchClientes = async () => {
+    if (!podeVerClientes) return {}
     setLoadingClientes(true)
     try {
       const data = await buscarClientes()
@@ -345,6 +397,52 @@ export function Processos({ onViewProcess }: ProcessosProps) {
     }
   }
 
+  // ── Delete handler ────────────────────────────────────────────────────────
+
+  const handleDelete = async () => {
+    if (!confirmDelete) return
+    setDeleting(true)
+    setDeleteError('')
+    try {
+      await excluirProcesso(confirmDelete.id)
+      setConfirmDelete(null)
+      loadData()
+    } catch (error: any) {
+      const msg = error?.response?.data?.detail
+      setDeleteError(msg || 'Erro ao excluir processo. Tente novamente.')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const handleToggleFavorito = async (id: string, atual: boolean, e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await atualizarProcesso(id, { favorito: !atual })
+      loadData()
+      queryClient.invalidateQueries({ queryKey: ['dashboard', 'casos-destacados'] })
+    } catch (error) {
+      console.error('Erro ao alternar favorito', error)
+    }
+  }
+
+  const handleOpenClientePanel = async (clienteId: number | null, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!clienteId) return
+    const cli = clientes.find(c => c.id === clienteId)
+    if (cli) {
+      try {
+        const pRaw = await buscarProcessosRaw()
+        const pCli = pRaw.filter(p => p.cliente_id === clienteId)
+        setProcessosDoCliente(pCli)
+        setSelectedCliente(cli)
+        setIsClientePanelOpen(true)
+      } catch (err) {
+        console.error(err)
+      }
+    }
+  }
+
   // ── Derived values ────────────────────────────────────────────────────────
 
   const totalAtivos = processos.filter(p => p.status === 'Ativo').length
@@ -361,10 +459,27 @@ export function Processos({ onViewProcess }: ProcessosProps) {
     )
   })
 
-  const handleSync = () => {
+  // Sincronização REAL com o DataJud (US 2.1.1).
+  // Antes era um mock (setTimeout fingindo carregar). Agora chama o backend de
+  // verdade e trata o caso de falha: mostra mensagem de erro clara e mantém os
+  // dados antigos + a data da última sincronização bem-sucedida na tela.
+  const handleSync = async () => {
     if (syncing) return
     setSyncing(true)
-    setTimeout(() => setSyncing(false), 2200)
+    setSyncError('')
+    try {
+      const resultado = await sincronizarTodosProcessos()
+      setUltimaSincronizacao(resultado.ultima_sincronizacao)
+      await loadData()
+    } catch (error: any) {
+      const msg = error?.response?.data?.detail
+      setSyncError(
+        msg ||
+          'Não foi possível sincronizar com o DataJud agora. Os dados exibidos podem estar desatualizados.'
+      )
+    } finally {
+      setSyncing(false)
+    }
   }
 
   const [exporting, setExporting] = useState(false)
@@ -384,7 +499,14 @@ export function Processos({ onViewProcess }: ProcessosProps) {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full bg-slate-50">
+    <div className="flex flex-col h-full bg-slate-50 relative">
+      <ClienteDetailPanel
+        isOpen={isClientePanelOpen}
+        onClose={() => setIsClientePanelOpen(false)}
+        cliente={selectedCliente}
+        processos={processosDoCliente}
+        onViewProcesso={onViewProcess}
+      />
       {/* ── Top bar ──────────────────────────────────────────────────────────── */}
       <div className="bg-white border-b border-gray-100 px-8 py-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -396,14 +518,16 @@ export function Processos({ onViewProcess }: ProcessosProps) {
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              onClick={handleExportCsv}
-              disabled={exporting}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 text-sm text-[#D4AF37] bg-white hover:bg-slate-50 hover:border-slate-300 transition-all disabled:opacity-60"
-            >
-              <Download className={`w-4 h-4 ${exporting ? 'animate-pulse' : ''}`} />
-              {exporting ? 'Baixando...' : 'Exportar CSV'}
-            </button>
+            {podeExportar && (
+              <button
+                onClick={handleExportCsv}
+                disabled={exporting}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 text-sm text-[#D4AF37] bg-white hover:bg-slate-50 hover:border-slate-300 transition-all disabled:opacity-60"
+              >
+                <Download className={`w-4 h-4 ${exporting ? 'animate-pulse' : ''}`} />
+                {exporting ? 'Baixando...' : 'Exportar CSV'}
+              </button>
+            )}
 
             <button
               onClick={handleSync}
@@ -415,20 +539,32 @@ export function Processos({ onViewProcess }: ProcessosProps) {
             </button>
 
             <button
-              onClick={() => setIsNovoClienteModalOpen(true)}
+              onClick={() => setIsBuscarClienteModalOpen(true)}
               className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 text-sm text-[#1A2B3C] bg-white hover:bg-slate-50 hover:border-slate-300 transition-all font-medium"
             >
-              <Building2 className="w-4 h-4" />
-              Novo Cliente
+              <Search className="w-4 h-4" />
+              Buscar Cliente
             </button>
 
-            <button
-              onClick={openModal}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#1A2B3C] text-sm text-white hover:bg-[#243447] transition-colors shadow-sm font-medium"
-            >
-              <Plus className="w-4 h-4" />
-              Novo Processo
-            </button>
+            {podeCriarClientes && (
+              <button
+                onClick={() => setIsNovoClienteModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 text-sm text-[#1A2B3C] bg-white hover:bg-slate-50 hover:border-slate-300 transition-all font-medium"
+              >
+                <Building2 className="w-4 h-4" />
+                Novo Cliente
+              </button>
+            )}
+
+            {podeCriar && (
+              <button
+                onClick={openModal}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#1A2B3C] text-sm text-white hover:bg-[#243447] transition-colors shadow-sm font-medium"
+              >
+                <Plus className="w-4 h-4" />
+                Novo Processo
+              </button>
+            )}
           </div>
         </div>
 
@@ -499,9 +635,19 @@ export function Processos({ onViewProcess }: ProcessosProps) {
 
         <div className="ml-auto flex items-center gap-1 text-xs text-slate-400">
           <Clock className="w-3.5 h-3.5" />
-          Última sincronização: 27/04/2026 às 09:14
+          Última sincronização: {formatarDataHora(ultimaSincronizacao)}
         </div>
       </div>
+
+      {/* ── Aviso de erro de sincronização (US 2.1.1) ───────────────────────── */}
+      {syncError && (
+        <div className="px-8 py-2.5 bg-red-50 border-b border-red-100">
+          <p className="text-xs text-red-600 font-medium flex items-center gap-1.5">
+            <AlertCircle className="w-3.5 h-3.5" />
+            {syncError}
+          </p>
+        </div>
+      )}
 
       {/* ── Data Grid ────────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-auto px-8 py-6">
@@ -573,7 +719,10 @@ export function Processos({ onViewProcess }: ProcessosProps) {
                   </div>
 
                   <div className="flex flex-col justify-center min-w-0 pr-2">
-                    <span className="text-sm font-semibold text-[#1A2B3C] truncate">
+                    <span
+                      onClick={e => handleOpenClientePanel(proc.clienteId, e)}
+                      className={`text-sm font-semibold truncate transition-colors ${proc.clienteId ? 'text-[#1A2B3C] hover:text-[#D4AF37] hover:underline cursor-pointer' : 'text-[#1A2B3C]'}`}
+                    >
                       {proc.cliente}
                     </span>
                     <span className="text-xs text-slate-400 truncate mt-0.5">
@@ -608,16 +757,45 @@ export function Processos({ onViewProcess }: ProcessosProps) {
 
                   <div className="flex items-center justify-end gap-1.5">
                     <button
-                      onClick={e => handleOpenEdit(proc.id, e)}
-                      title="Editar processo"
+                      onClick={e => handleToggleFavorito(proc.id, proc.favorito, e)}
+                      title={proc.favorito ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
                       className={`
-                        flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all
-                        ${isHovered ? 'bg-slate-100 text-[#1A2B3C] hover:bg-slate-200' : 'text-slate-300 hover:text-slate-500'}
+                        flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-all
+                        ${proc.favorito ? 'text-[#D4AF37] hover:bg-[#D4AF37]/10' : isHovered ? 'text-slate-300 hover:text-slate-500 hover:bg-slate-100' : 'text-transparent'}
                       `}
                     >
-                      <Pencil className="w-3.5 h-3.5" />
-                      {isHovered && <span>Editar</span>}
+                      <Star className={`w-4 h-4 ${proc.favorito ? 'fill-[#D4AF37]' : ''}`} />
                     </button>
+                    {podeEditar && (
+                      <button
+                        onClick={e => handleOpenEdit(proc.id, e)}
+                        title="Editar processo"
+                        className={`
+                          flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all
+                          ${isHovered ? 'bg-slate-100 text-[#1A2B3C] hover:bg-slate-200' : 'text-slate-300 hover:text-slate-500'}
+                        `}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        {isHovered && <span>Editar</span>}
+                      </button>
+                    )}
+                    {podeExcluir && (
+                      <button
+                        onClick={e => {
+                          e.stopPropagation()
+                          setConfirmDelete({ id: proc.id, cnj: proc.cnj })
+                          setDeleteError('')
+                        }}
+                        title="Excluir processo"
+                        className={`
+                          flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all
+                          ${isHovered ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'text-slate-300 hover:text-red-500'}
+                        `}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        {isHovered && <span>Excluir</span>}
+                      </button>
+                    )}
                     <button
                       onClick={e => {
                         e.stopPropagation()
@@ -1044,13 +1222,15 @@ export function Processos({ onViewProcess }: ProcessosProps) {
                     <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
                       Cliente
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => setIsNovoClienteModalOpen(true)}
-                      className="text-[10px] text-[#D4AF37] hover:underline"
-                    >
-                      + Novo cliente
-                    </button>
+                    {podeCriarClientes && (
+                      <button
+                        type="button"
+                        onClick={() => setIsNovoClienteModalOpen(true)}
+                        className="text-[10px] text-[#D4AF37] hover:underline"
+                      >
+                        + Novo cliente
+                      </button>
+                    )}
                   </div>
                   <select
                     value={manualForm.cliente_id}
@@ -1124,13 +1304,15 @@ export function Processos({ onViewProcess }: ProcessosProps) {
                 <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
                   Cliente / Parte Representada
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setIsNovoClienteModalOpen(true)}
-                  className="text-[10px] text-[#D4AF37] hover:underline"
-                >
-                  + Novo cliente
-                </button>
+                {podeCriarClientes && (
+                  <button
+                    type="button"
+                    onClick={() => setIsNovoClienteModalOpen(true)}
+                    className="text-[10px] text-[#D4AF37] hover:underline"
+                  >
+                    + Novo cliente
+                  </button>
+                )}
               </div>
               <select
                 value={editForm.cliente_id}
@@ -1235,6 +1417,120 @@ export function Processos({ onViewProcess }: ProcessosProps) {
           }
         }}
       />
+
+      {/* ─── MODAL CONFIRMAR EXCLUSÃO ─── */}
+      <Dialog
+        open={confirmDelete !== null}
+        onOpenChange={open => {
+          if (!open && !deleting) {
+            setConfirmDelete(null)
+            setDeleteError('')
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[420px] bg-white border border-slate-100 rounded-xl p-6">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-5 h-5 text-red-500" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold text-[#1A2B3C]">
+                  Excluir Processo
+                </DialogTitle>
+                <p className="text-xs text-slate-400">Esta ação não pode ser desfeita.</p>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <p className="text-sm text-slate-600 mt-2">
+            Tem certeza que deseja excluir o processo{' '}
+            <strong className="font-mono">{confirmDelete?.cnj}</strong>? Todos os dados e
+            movimentações vinculados serão removidos permanentemente.
+          </p>
+
+          {deleteError && (
+            <div className="flex items-center gap-2 p-3 mt-3 rounded-lg bg-red-50 border border-red-100">
+              <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+              <p className="text-xs text-red-600">{deleteError}</p>
+            </div>
+          )}
+
+          <div className="flex gap-3 mt-5">
+            <button
+              type="button"
+              onClick={() => {
+                setConfirmDelete(null)
+                setDeleteError('')
+              }}
+              disabled={deleting}
+              className="flex-1 py-2.5 rounded-lg border border-gray-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg bg-red-500 text-sm text-white font-medium hover:bg-red-600 transition-colors disabled:opacity-70"
+            >
+              {deleting ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  Excluindo…
+                </>
+              ) : (
+                'Confirmar Exclusão'
+              )}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isBuscarClienteModalOpen} onOpenChange={setIsBuscarClienteModalOpen}>
+        <DialogContent className="max-w-md bg-white border border-slate-100 shadow-xl p-0 overflow-hidden flex flex-col max-h-[85vh]">
+          <DialogHeader className="bg-slate-50 border-b border-gray-100 px-6 py-4 flex-shrink-0">
+            <DialogTitle className="text-lg text-[#1A2B3C] font-semibold flex items-center gap-2">
+              <Search className="w-5 h-5 text-[#D4AF37]" />
+              Buscar Cliente
+            </DialogTitle>
+          </DialogHeader>
+          <div className="px-6 pt-4 flex-shrink-0">
+            <input
+              type="text"
+              placeholder="Digite o nome, CPF ou CNPJ..."
+              value={buscarClienteTermo}
+              onChange={e => setBuscarClienteTermo(e.target.value)}
+              className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]"
+            />
+          </div>
+          <div className="p-6 overflow-y-auto flex flex-col gap-2">
+            {clientes.length === 0 ? (
+              <p className="text-sm text-slate-500">Nenhum cliente cadastrado ainda.</p>
+            ) : (
+              clientes
+                .filter(
+                  c =>
+                    c.nome_razao_social.toLowerCase().includes(buscarClienteTermo.toLowerCase()) ||
+                    (c.cpf_cnpj && c.cpf_cnpj.includes(buscarClienteTermo))
+                )
+                .map(c => (
+                  <div
+                    key={c.id}
+                    onClick={e => {
+                      setIsBuscarClienteModalOpen(false)
+                      handleOpenClientePanel(c.id, e as unknown as React.MouseEvent)
+                    }}
+                    className="p-3 border border-slate-100 rounded-lg hover:border-[#D4AF37]/50 hover:bg-slate-50 cursor-pointer transition-colors"
+                  >
+                    <p className="text-sm font-semibold text-[#1A2B3C]">{c.nome_razao_social}</p>
+                    <p className="text-xs text-slate-400 font-mono mt-0.5">{c.cpf_cnpj}</p>
+                  </div>
+                ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

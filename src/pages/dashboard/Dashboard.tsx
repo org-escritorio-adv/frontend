@@ -5,6 +5,7 @@ import { CaseFavoritoDrawer, type CasoDetalhado } from '@/pages/casos/CaseFavori
 import { buscarResumo, buscarAtividades } from '@/services/dashboard.service'
 import { buscarProcessos, buscarClientes } from '@/services/processos.service'
 import { useAuth } from '@/context/AuthContext'
+import { canViewClientes } from '@/lib/rbac'
 
 interface DashboardProps {
   onVerProcesso?: (id: string) => void
@@ -32,14 +33,17 @@ export function Dashboard({ onVerProcesso }: DashboardProps = {}) {
   const { data: casosDestacados = [] } = useQuery({
     queryKey: ['dashboard', 'casos-destacados'],
     queryFn: async (): Promise<CasoDetalhado[]> => {
-      const clientesApi = await buscarClientes()
       const map: Record<number, string> = {}
-      clientesApi.forEach(c => {
-        map[c.id] = c.nome_razao_social
-      })
+      if (canViewClientes(user)) {
+        const clientesApi = await buscarClientes()
+        clientesApi.forEach(c => {
+          map[c.id] = c.nome_razao_social
+        })
+      }
       const processosApi = await buscarProcessos(map)
+      const favoritos = processosApi.filter(p => p.favorito)
 
-      return processosApi.slice(0, 4).map(p => ({
+      return favoritos.slice(0, 4).map(p => ({
         id: p.id,
         cnj: p.cnj,
         cliente: p.cliente,
@@ -50,6 +54,7 @@ export function Dashboard({ onVerProcesso }: DashboardProps = {}) {
         valorCausa: p.valorCausa || 'R$ 0,00',
         responsavel: 'Responsável',
         telefone: 'Não informado',
+        favorito: p.favorito,
         movimentacoes: [
           {
             data: p.ultimaMovimentacao.data,
@@ -210,16 +215,16 @@ export function Dashboard({ onVerProcesso }: DashboardProps = {}) {
                         {/* Indicador de clique */}
                         <div
                           className={`
-                          w-5 h-5 rounded-full flex items-center justify-center transition-all
+                          w-6 h-6 rounded-full flex items-center justify-center transition-colors
                           ${
-                            isFirst
+                            caso.favorito
                               ? 'bg-[#D4AF37]/15 group-hover:bg-[#D4AF37]/30'
                               : 'bg-slate-100 group-hover:bg-slate-200'
                           }
                         `}
                         >
                           <Star
-                            className={`w-2.5 h-2.5 ${isFirst ? 'text-[#D4AF37] fill-[#D4AF37]' : 'text-slate-400'}`}
+                            className={`w-2.5 h-2.5 ${caso.favorito ? 'text-[#D4AF37] fill-[#D4AF37]' : 'text-slate-400'}`}
                           />
                         </div>
                       </div>

@@ -16,9 +16,18 @@ export async function login(username: string, password: string): Promise<void> {
     })
   })
 
+  // ---- Bloco de Isolamento e Debug do Código 1 injetado aqui ----
   if (!response.ok) {
+    const errorBody = await response.text()
+    console.error(
+      'Keycloak URL usada:',
+      `${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/token`
+    )
+    console.error('Status:', response.status)
+    console.error('Resposta:', errorBody)
     throw new Error('Credenciais inválidas')
   }
+  // -------------------------------------------------------------
 
   const data = await response.json()
   localStorage.setItem('token', data.access_token)
@@ -76,6 +85,9 @@ export interface CurrentUser {
   name: string
   email: string
   role: 'admin' | 'advogado' | 'estagiario'
+  /** Override de permissões individuais carregado de /usuarios/me; ausente
+   * enquanto o perfil ainda não terminou de carregar do backend. */
+  permissoes?: Record<string, boolean>
 }
 
 export function getCurrentUser(): CurrentUser | null {

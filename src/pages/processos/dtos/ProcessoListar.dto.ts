@@ -10,6 +10,7 @@ export interface ProcessoAPI {
   partes: string | null
   status: string
   cliente_id: number | null
+  favorito: boolean
   data_abertura?: string | null
   movimentacoes: MovimentacaoAPI[]
 }
@@ -18,12 +19,14 @@ export interface ProcessoAPI {
 export interface Processo {
   id: string
   cnj: string
+  clienteId: number | null
   cliente: string
   parteContraria: string
   tribunal: string
   vara: string
   ultimaMovimentacao: { data: string; descricao: string }
   status: 'Ativo' | 'Arquivado' | 'Em Recurso' | 'Suspenso'
+  favorito: boolean
   valorCausa: string
   casoVinculado: string
 }

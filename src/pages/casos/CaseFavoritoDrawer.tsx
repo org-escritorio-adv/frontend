@@ -37,6 +37,7 @@ export interface CasoDetalhado {
   valorCausa: string
   responsavel: string
   telefone: string
+  favorito?: boolean
   movimentacoes: Movimentacao[]
 }
 

@@ -53,3 +53,15 @@ export async function importarDataJud(
   })
   return response.data
 }
+
+export interface DataJudSincronizarResponse {
+  total_processos: number
+  sincronizados_com_sucesso: number
+  falhas: number
+  ultima_sincronizacao: string // timestamp ISO retornado pelo backend
+}
+
+export async function sincronizarTodosProcessos(): Promise<DataJudSincronizarResponse> {
+  const response = await api.post('/datajud/sincronizar-todos')
+  return response.data
+}

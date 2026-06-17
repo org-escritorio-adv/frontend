@@ -14,4 +14,5 @@ export interface AtualizarProcessoPayload {
   status?: string
   partes?: string
   tribunal?: string
+  favorito?: boolean
 }

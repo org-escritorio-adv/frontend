@@ -305,7 +305,10 @@ export function MobileTopBar() {
           ].map(({ icon: Icon, label, path }) => (
             <button
               key={label}
-              onClick={() => { closeAll(); if (path) navigate(path) }}
+              onClick={() => {
+                closeAll()
+                if (path) navigate(path)
+              }}
               className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100 transition-colors"
             >
               <Icon className="w-4 h-4 text-slate-500 flex-shrink-0" />

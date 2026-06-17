@@ -34,6 +34,8 @@ import {
   type DataJudProcesso,
   type DataJudImportarResponse
 } from '@/services/datajud.service'
+import { useAuth } from '@/context/AuthContext'
+import { canCreateProcessos, canEditProcessos, canViewClientes } from '@/lib/rbac'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -53,6 +55,11 @@ type SyncStep = 'form' | 'preview' | 'success'
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function ProcessosMobile() {
+  const { user } = useAuth()
+  const podeCriar = canCreateProcessos(user)
+  const podeEditar = canEditProcessos(user)
+  const podeVerClientes = canViewClientes(user)
+
   const [query, setQuery] = useState('')
   const [syncing, setSyncing] = useState(false)
 
@@ -97,6 +104,7 @@ export function ProcessosMobile() {
   const [syncError, setSyncError] = useState('')
 
   const fetchClientes = async () => {
+    if (!podeVerClientes) return {}
     setLoadingClientes(true)
     try {
       const data = await buscarClientes()
@@ -334,13 +342,15 @@ export function ProcessosMobile() {
           {syncing ? 'Sincronizando…' : 'Sincronizar'}
         </button>
 
-        <button
-          onClick={() => setModalOpen(true)}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#1A2B3C] text-sm text-white hover:bg-[#243447] transition-colors shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Adicionar
-        </button>
+        {podeCriar && (
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#1A2B3C] text-sm text-white hover:bg-[#243447] transition-colors shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Adicionar
+          </button>
+        )}
       </div>
 
       {/* ── Busca ─────────────────────────────────────────────────── */}
@@ -518,22 +528,24 @@ export function ProcessosMobile() {
                       </div>
                     </div>
 
-                    <div className="flex gap-2 mt-3">
-                      <button
-                        onClick={() => handleOpenEdit(proc)}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-[#1A2B3C] transition-colors border border-slate-100"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                        <span className="text-xs font-medium">Editar</span>
-                      </button>
-                      <button
-                        onClick={() => handleOpenSync(proc)}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-[#1A2B3C] transition-colors border border-slate-100"
-                      >
-                        <Database className="w-3.5 h-3.5" />
-                        <span className="text-xs font-medium">Sincronizar API</span>
-                      </button>
-                    </div>
+                    {podeEditar && (
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={() => handleOpenEdit(proc)}
+                          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-[#1A2B3C] transition-colors border border-slate-100"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          <span className="text-xs font-medium">Editar</span>
+                        </button>
+                        <button
+                          onClick={() => handleOpenSync(proc)}
+                          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-[#1A2B3C] transition-colors border border-slate-100"
+                        >
+                          <Database className="w-3.5 h-3.5" />
+                          <span className="text-xs font-medium">Sincronizar API</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {isDestaque && (

@@ -10,16 +10,21 @@ import {
 } from 'lucide-react'
 import { MobileTopBar } from '@/shared/components/layout/mobile/MobileTopBar'
 import { routePaths } from '@/routeConfig'
+import { useAuth } from '@/context/AuthContext'
+import { canAccessCMS, canViewClientes } from '@/lib/rbac'
 
 export function MobileLayout() {
   const location = useLocation()
+  const { user } = useAuth()
 
   const navItems = [
     { path: routePaths.app, icon: LayoutDashboard, label: 'Dashboard' },
     { path: routePaths.appCases, icon: Briefcase, label: 'Casos' },
     { path: routePaths.appProcessos, icon: Scale, label: 'Processos' },
-    { path: routePaths.appCMS, icon: FileText, label: 'CMS' },
-    { path: routePaths.appClientes, icon: UserRound, label: 'Clientes' },
+    ...(canAccessCMS(user) ? [{ path: routePaths.appCMS, icon: FileText, label: 'CMS' }] : []),
+    ...(canViewClientes(user)
+      ? [{ path: routePaths.appClientes, icon: UserRound, label: 'Clientes' }]
+      : []),
     { path: routePaths.appEquipe, icon: Users, label: 'Equipe' },
     { path: routePaths.appAjustes, icon: Settings, label: 'Ajustes' }
   ]

@@ -5,6 +5,7 @@ import {
   getCurrentUser,
   type CurrentUser
 } from '@/services/auth.service'
+import { buscarMeuPerfil } from '@/services/equipe.service'
 
 interface AuthContextData {
   isAuthenticated: boolean
@@ -20,12 +21,34 @@ const AuthContext = createContext<AuthContextData>({} as AuthContextData)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [permissoes, setPermissoes] = useState<Record<string, boolean> | undefined>(undefined)
 
   useEffect(() => {
     const storedToken = localStorage.getItem('token')
     if (storedToken) setToken(storedToken)
     setIsLoading(false)
   }, [])
+
+  // Carrega as permissões individuais (override por usuário) do backend
+  // sempre que o token mudar — o JWT do Keycloak só traz a role, não as
+  // permissões finas configuradas no Painel de Permissões.
+  useEffect(() => {
+    if (!token) {
+      setPermissoes(undefined)
+      return
+    }
+    let cancelado = false
+    buscarMeuPerfil()
+      .then(perfil => {
+        if (!cancelado) setPermissoes(perfil.permissoes ?? {})
+      })
+      .catch(() => {
+        if (!cancelado) setPermissoes(undefined)
+      })
+    return () => {
+      cancelado = true
+    }
+  }, [token])
 
   // Mantém o estado sincronizado quando os tokens são alterados em outra aba
   // ou pelo interceptor do axios (refresh automático em caso de 401).
@@ -47,7 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null)
   }
 
-  const user = token ? getCurrentUser() : null
+  const baseUser = token ? getCurrentUser() : null
+  const user: CurrentUser | null = baseUser ? { ...baseUser, permissoes } : null
 
   return (
     <AuthContext.Provider
