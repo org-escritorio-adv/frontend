@@ -1,6 +1,7 @@
 @import './tailwind.css';
 @import './fonts.css';
 @import './theme.css';
+@import './dark.css';
 
 /* Hide scrollbar for horizontal scroll sections */
 .scrollbar-hide {

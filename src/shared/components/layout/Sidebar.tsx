@@ -1,6 +1,7 @@
-import { LayoutDashboard, Briefcase, Building2, Settings, Columns3, Users } from 'lucide-react'
+import { LayoutDashboard, Briefcase, Building2, Settings, Columns3, Users, UserSquare2 } from 'lucide-react'
 import { AppLogo } from '@/shared/components/layout/AppLogo'
 import { useAuth } from '@/context/AuthContext'
+import { canAccessCMS } from '@/lib/rbac'
 
 interface SidebarProps {
   activeView: string
@@ -10,14 +11,20 @@ interface SidebarProps {
 export function Sidebar({ activeView, onViewChange }: SidebarProps) {
   const { user } = useAuth()
   const iniciais = user?.name
-    ? user.name.split(' ').filter(Boolean).slice(0, 2).map(n => n[0].toUpperCase()).join('')
+    ? user.name
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(n => n[0].toUpperCase())
+        .join('')
     : '?'
 
   const menuItems = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', short: 'Início' },
     { id: 'processos', icon: Columns3, label: 'Casos (Demandas)', short: 'Casos' },
     { id: 'cases', icon: Briefcase, label: 'Processos (DataJud)', short: 'Proc.' },
-    { id: 'cms', icon: Building2, label: 'CMS', short: 'CMS' },
+    { id: 'clientes', icon: UserSquare2, label: 'Clientes', short: 'Clientes' },
+    ...(canAccessCMS(user) ? [{ id: 'cms', icon: Building2, label: 'CMS', short: 'CMS' }] : []),
     { id: 'team', icon: Users, label: 'Equipe & Permissões', short: 'Equipe' },
     { id: 'settings', icon: Settings, label: 'Ajustes', short: 'Ajustes' }
   ]

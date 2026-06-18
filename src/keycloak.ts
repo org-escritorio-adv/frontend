@@ -1,11 +1,11 @@
-import Keycloak from 'keycloak-js';
+import Keycloak from 'keycloak-js'
 
-const keycloakUrl = import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8080';
+const keycloakUrl = import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8080'
 
 const keycloak = new Keycloak({
-  url: keycloakUrl, 
+  url: keycloakUrl,
   realm: 'escritorio-realm',
-  clientId: 'frontend-client',
-});
+  clientId: 'frontend-client'
+})
 
-export default keycloak;
+export default keycloak
