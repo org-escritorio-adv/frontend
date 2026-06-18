@@ -32,6 +32,19 @@ const montserrat = { fontFamily: "'Montserrat', sans-serif" } as React.CSSProper
 const playfair = { fontFamily: "'Playfair Display', serif" } as React.CSSProperties
 const ebGaramond = { fontFamily: "'EB Garamond', serif" } as React.CSSProperties
 
+// ─── Contact helpers ─────────────────────────────────────────────────────────
+const soDigitos = (tel: string) => tel.replace(/\D/g, '')
+
+function whatsappHref(tel: string) {
+  const d = soDigitos(tel)
+  return `https://wa.me/${d.startsWith('55') ? d : `55${d}`}`
+}
+
+function telHref(tel: string) {
+  const d = soDigitos(tel)
+  return `tel:+${d.startsWith('55') ? d : `55${d}`}`
+}
+
 // ─── Data ────────────────────────────────────────────────────────────────────
 const serviceAreas = [
   {
@@ -703,17 +716,13 @@ function MissaoSection() {
 }
 
 // ─── Section: Equipe ─────────────────────────────────────────────────────────
-function EquipeSection() {
-  const [membros, setMembros] = useState<Advogado[]>([])
-  const [carregando, setCarregando] = useState(true)
-
-  useEffect(() => {
-    listarAdvogados()
-      .then(setMembros)
-      .catch(() => setMembros([]))
-      .finally(() => setCarregando(false))
-  }, [])
-
+function EquipeSection({
+  membros,
+  carregando
+}: {
+  membros: Advogado[]
+  carregando: boolean
+}) {
   return (
     <section id="equipe" className="bg-[#f5f5f5] py-24">
       <div className="max-w-[1216px] mx-auto px-8">
@@ -881,7 +890,7 @@ function StatsSection() {
 }
 
 // ─── Section: Agendar Consulta + Contato ─────────────────────────────────────
-function ContatoSection() {
+function ContatoSection({ membros }: { membros: Advogado[] }) {
   const [msgForm, setMsgForm] = useState({ nome: '', email: '', telefone: '', mensagem: '' })
   const [msgSent, setMsgSent] = useState(false)
 
@@ -892,6 +901,36 @@ function ContatoSection() {
 
   const inputCls =
     'w-full h-[50px] bg-white rounded-[10px] border border-[#d1d5dc] px-4 text-[16px] text-[#121212] placeholder-[rgba(10,10,10,0.4)] outline-none focus:border-[#c5a059] focus:ring-1 focus:ring-[#c5a059] transition'
+
+  // Advogado de referência para o banner de agendamento (primeiro com telefone).
+  const principal = membros.find(m => m.telefone) ?? membros[0]
+
+  // Canais de atendimento gerados a partir dos advogados cadastrados no CMS:
+  // um telefone/WhatsApp por advogado, seguido dos e-mails e do endereço fixo.
+  const canais = [
+    ...membros
+      .filter(m => m.telefone)
+      .map(m => ({
+        Icon: Phone,
+        label: m.cargo ? `${m.nome} · ${m.cargo}` : m.nome,
+        value: m.telefone as string,
+        href: whatsappHref(m.telefone as string)
+      })),
+    ...membros
+      .filter(m => m.email)
+      .map(m => ({
+        Icon: Mail,
+        label: `E-mail · ${m.nome}`,
+        value: m.email as string,
+        href: `mailto:${m.email}`
+      })),
+    {
+      Icon: MapPin,
+      label: 'Endereço',
+      value: 'Brasília, DF — Atendimento também por videoconferência',
+      href: '#'
+    }
+  ]
 
   return (
     <section id="contato" className="bg-[#f5f5f5] py-24">
@@ -934,25 +973,27 @@ function ContatoSection() {
               </p>
             </div>
           </div>
-          <div className="flex flex-col sm:flex-row gap-3 flex-shrink-0">
-            <a
-              href="tel:+556198190-0501"
-              className="h-[48px] px-6 bg-[#c5a059] rounded-[10px] text-[#121212] text-[15px] flex items-center gap-2 hover:bg-[#b8903f] transition-colors whitespace-nowrap"
-              style={{ ...montserrat, fontWeight: 500 }}
-            >
-              <Phone className="w-4 h-4" />
-              (61) 98190-0501
-            </a>
-            <a
-              href="https://wa.me/556198226-5931"
-              target="_blank"
-              rel="noreferrer"
-              className="h-[48px] px-6 border-2 border-[#c5a059] rounded-[10px] text-[#c5a059] text-[15px] flex items-center gap-2 hover:bg-[#c5a059] hover:text-[#121212] transition-colors whitespace-nowrap"
-              style={{ ...montserrat, fontWeight: 500 }}
-            >
-              WhatsApp (61) 98226-5931
-            </a>
-          </div>
+          {principal?.telefone && (
+            <div className="flex flex-col sm:flex-row gap-3 flex-shrink-0">
+              <a
+                href={telHref(principal.telefone)}
+                className="h-[48px] px-6 bg-[#c5a059] rounded-[10px] text-[#121212] text-[15px] flex items-center gap-2 hover:bg-[#b8903f] transition-colors whitespace-nowrap"
+                style={{ ...montserrat, fontWeight: 500 }}
+              >
+                <Phone className="w-4 h-4" />
+                {principal.telefone}
+              </a>
+              <a
+                href={whatsappHref(principal.telefone)}
+                target="_blank"
+                rel="noreferrer"
+                className="h-[48px] px-6 border-2 border-[#c5a059] rounded-[10px] text-[#c5a059] text-[15px] flex items-center gap-2 hover:bg-[#c5a059] hover:text-[#121212] transition-colors whitespace-nowrap"
+                style={{ ...montserrat, fontWeight: 500 }}
+              >
+                WhatsApp {principal.telefone}
+              </a>
+            </div>
+          )}
         </div>
 
         <div className="grid lg:grid-cols-2 gap-10">
@@ -1072,37 +1113,15 @@ function ContatoSection() {
             </h3>
 
             <div className="flex flex-col gap-5 mb-8">
-              {[
-                {
-                  Icon: Phone,
-                  label: 'Dr. Gabriel Barcelos',
-                  value: '+55 (61) 98190-0501',
-                  href: 'tel:+556198190-0501'
-                },
-                {
-                  Icon: Phone,
-                  label: 'Dr. Lucas Takaki',
-                  value: '+55 (61) 98226-5931',
-                  href: 'tel:+556198226-5931'
-                },
-                {
-                  Icon: Mail,
-                  label: 'E-mail',
-                  value: 'adv.lucastakaki@gmail.com',
-                  href: 'mailto:adv.lucastakaki@gmail.com'
-                },
-                {
-                  Icon: MapPin,
-                  label: 'Endereço',
-                  value: 'Brasília, DF — Atendimento também por videoconferência',
-                  href: '#'
-                }
-              ].map(c => {
+              {canais.map(c => {
                 const Icon = c.Icon
                 return (
                   <a
                     key={c.label}
                     href={c.href}
+                    {...(c.href.startsWith('http')
+                      ? { target: '_blank', rel: 'noreferrer' }
+                      : {})}
                     className="flex items-start gap-4 p-4 bg-white rounded-[10px] border border-[#e5e7eb] hover:border-[#c5a059] transition-colors group shadow-sm"
                   >
                     <div className="w-10 h-10 bg-[#1b2539] rounded-[10px] flex items-center justify-center flex-shrink-0">
@@ -1149,7 +1168,9 @@ function ContatoSection() {
 }
 
 // ─── Section: Footer ─────────────────────────────────────────────────────────
-function Footer() {
+function Footer({ membros }: { membros: Advogado[] }) {
+  const telefones = membros.filter(m => m.telefone)
+
   return (
     <footer className="bg-[#121212] py-14 border-t border-[rgba(197,160,89,0.15)]">
       <div className="max-w-[1216px] mx-auto px-8">
@@ -1225,20 +1246,16 @@ function Footer() {
               Contato
             </h4>
             <div className="flex flex-col gap-3">
-              <div
-                className="flex items-center gap-2 text-[#6a7282] text-[14px]"
-                style={montserrat}
-              >
-                <Phone className="w-4 h-4 text-[#c5a059] flex-shrink-0" />
-                (61) 98190-0501
-              </div>
-              <div
-                className="flex items-center gap-2 text-[#6a7282] text-[14px]"
-                style={montserrat}
-              >
-                <Phone className="w-4 h-4 text-[#c5a059] flex-shrink-0" />
-                (61) 98226-5931
-              </div>
+              {telefones.map(m => (
+                <div
+                  key={m.id}
+                  className="flex items-center gap-2 text-[#6a7282] text-[14px]"
+                  style={montserrat}
+                >
+                  <Phone className="w-4 h-4 text-[#c5a059] flex-shrink-0" />
+                  {m.telefone}
+                </div>
+              ))}
               <div
                 className="flex items-center gap-2 text-[#6a7282] text-[14px]"
                 style={montserrat}
@@ -1279,6 +1296,15 @@ function Footer() {
 // ─── Root export ─────────────────────────────────────────────────────────────
 export function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [membros, setMembros] = useState<Advogado[]>([])
+  const [carregando, setCarregando] = useState(true)
+
+  useEffect(() => {
+    listarAdvogados()
+      .then(setMembros)
+      .catch(() => setMembros([]))
+      .finally(() => setCarregando(false))
+  }, [])
 
   return (
     <div className="min-h-screen" style={{ fontFamily: "'Montserrat', sans-serif" }}>
@@ -1287,10 +1313,10 @@ export function LandingPage() {
       <ServicosSection />
       <AnalisarCasoSection />
       <MissaoSection />
-      <EquipeSection />
+      <EquipeSection membros={membros} carregando={carregando} />
       <StatsSection />
-      <ContatoSection />
-      <Footer />
+      <ContatoSection membros={membros} />
+      <Footer membros={membros} />
     </div>
   )
 }

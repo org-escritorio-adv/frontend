@@ -12,7 +12,6 @@ import {
   Scale,
   Briefcase,
   AtSign,
-  ChevronDown,
   Inbox,
   Clock,
   Phone,
@@ -122,17 +121,6 @@ function ModalAdvogado({ isOpen, mode, initial, onClose, onSave }: ModalAdvogado
     }
   }
 
-  const especialidades = [
-    'Direito Empresarial',
-    'Direito Tributário',
-    'Direito Trabalhista',
-    'Direito Civil',
-    'Direito Penal',
-    'Direito Previdenciário',
-    'Direito Digital',
-    'Direito Ambiental'
-  ]
-
   if (!isOpen) return null
 
   return (
@@ -201,21 +189,13 @@ function ModalAdvogado({ isOpen, mode, initial, onClose, onSave }: ModalAdvogado
             <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
               <Briefcase className="w-3 h-3" /> Especialidade
             </label>
-            <div className="relative">
-              <select
-                value={form.especialidade ?? ''}
-                onChange={e => setForm({ ...form, especialidade: e.target.value })}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-[#1A2B3C] focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] transition appearance-none bg-white"
-              >
-                <option value="">Selecione uma especialidade…</option>
-                {especialidades.map(e => (
-                  <option key={e} value={e}>
-                    {e}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-            </div>
+            <input
+              type="text"
+              value={form.especialidade ?? ''}
+              onChange={e => setForm({ ...form, especialidade: e.target.value })}
+              placeholder="Ex: Direito Empresarial, Direito Tributário…"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-[#1A2B3C] placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] transition"
+            />
           </div>
 
           {/* OAB */}
