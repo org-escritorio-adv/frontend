@@ -1,14 +1,36 @@
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Download, Upload, FileText, Calendar, MapPin, Users, Scale, Hash,
-  ArrowLeft, Loader2, AlertCircle, Pencil, X, Check
+  Download,
+  Upload,
+  FileText,
+  Calendar,
+  MapPin,
+  Users,
+  Scale,
+  Hash,
+  ArrowLeft,
+  Loader2,
+  AlertCircle,
+  Pencil,
+  X,
+  Check,
+  Trash2,
+  Paperclip,
+  Clock,
+  CheckCircle2,
+  AlertTriangle
 } from 'lucide-react'
 import {
   buscarProcessoPorId,
   exportarPdfProcesso,
   atualizarProcesso,
-  buscarClientes
+  buscarClientes,
+  listarDocumentosProcesso,
+  uploadDocumentoProcesso,
+  baixarDocumentoProcesso,
+  removerDocumentoProcesso,
+  type DocumentoProcesso
 } from '@/services/processos.service'
 import { useAuth } from '@/context/AuthContext'
 import { canEditProcessos, canExportDados } from '@/lib/rbac'
@@ -119,6 +141,60 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
     partes: '',
     cliente_id: '' as string | number,
   })
+
+  // ── Upload de Documentos ──────────────────────────────────────────────────
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [dragOver, setDragOver] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadErro, setUploadErro] = useState('')
+
+  const { data: documentos = [], refetch: refetchDocs } = useQuery({
+    queryKey: ['documentos-processo', processoId],
+    queryFn: () => listarDocumentosProcesso(processoId),
+    enabled: !!processoId
+  })
+
+  const processarArquivo = useCallback(async (file: File) => {
+    setUploadErro('')
+    setUploading(true)
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const result = reader.result as string
+          resolve(result.split(',')[1])
+        }
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+      await uploadDocumentoProcesso(processoId, base64, file.name)
+      await refetchDocs()
+    } catch {
+      setUploadErro('Erro ao enviar arquivo. Tente novamente.')
+    } finally {
+      setUploading(false)
+    }
+  }, [processoId, refetchDocs])
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) processarArquivo(file)
+    e.target.value = ''
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) processarArquivo(file)
+  }
+
+  const handleRemoverDoc = async (doc: DocumentoProcesso) => {
+    try {
+      await removerDocumentoProcesso(processoId, doc.id)
+      await refetchDocs()
+    } catch { /* ignora */ }
+  }
 
   const abrirEdicao = () => {
     if (!processo) return
@@ -405,20 +481,152 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
         </div>
       )}
 
-      {/* ── Documentos e Compliance ────────────────────────────────────────── */}
-      {podeEditar && (
+      {/* ── Prazos ─────────────────────────────────────────────────────────── */}
+      {processo.prazos && processo.prazos.length > 0 && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
-          <h3 className="text-[#1A2B3C] mb-4">Documentos e Autorização de Compliance</h3>
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#D4AF37] transition-colors cursor-pointer group">
-            <Upload className="w-12 h-12 text-slate-400 group-hover:text-[#D4AF37] mx-auto mb-3 transition-colors" />
-            <p className="text-slate-600 mb-1">Enviar documentos de compliance</p>
-            <p className="text-sm text-slate-400 mb-4">Arraste arquivos para cá ou clique para selecionar</p>
-            <button className="px-5 py-2 bg-[#1A2B3C] text-white rounded-lg hover:bg-[#243447] transition-colors text-sm">
-              Selecionar Arquivos
-            </button>
+          <div className="flex items-center gap-2 mb-4">
+            <Clock className="w-5 h-5 text-[#D4AF37]" />
+            <h3 className="text-[#1A2B3C] font-semibold">Prazos</h3>
+            <span className="ml-auto text-xs text-slate-400">{processo.prazos.length} prazo{processo.prazos.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="space-y-3">
+            {[...processo.prazos]
+              .sort((a, b) => new Date(a.data_limite).getTime() - new Date(b.data_limite).getTime())
+              .map(prazo => {
+                const dataLimite = new Date(prazo.data_limite)
+                const hoje = new Date()
+                const diasRestantes = Math.ceil((dataLimite.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
+                const vencido = diasRestantes < 0
+                const urgente = diasRestantes >= 0 && diasRestantes <= 3
+                const concluido = prazo.status === 'concluido' || prazo.status === 'concluída'
+
+                return (
+                  <div
+                    key={prazo.id}
+                    className={`flex items-start gap-3 p-4 rounded-lg border transition-colors ${
+                      concluido
+                        ? 'border-emerald-100 bg-emerald-50/50'
+                        : vencido
+                          ? 'border-red-100 bg-red-50/50'
+                          : urgente
+                            ? 'border-amber-100 bg-amber-50/50'
+                            : 'border-slate-100 bg-slate-50/50'
+                    }`}
+                  >
+                    <div className="flex-shrink-0 mt-0.5">
+                      {concluido ? (
+                        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                      ) : vencido ? (
+                        <AlertTriangle className="w-5 h-5 text-red-500" />
+                      ) : urgente ? (
+                        <AlertTriangle className="w-5 h-5 text-amber-500" />
+                      ) : (
+                        <Clock className="w-5 h-5 text-slate-400" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-[#1A2B3C]">{prazo.titulo}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Vencimento: {dataLimite.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                      </p>
+                    </div>
+                    <div className="flex-shrink-0 text-right">
+                      {concluido ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-700">
+                          Concluído
+                        </span>
+                      ) : vencido ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-100 text-red-700">
+                          Vencido
+                        </span>
+                      ) : (
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${urgente ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>
+                          {diasRestantes === 0 ? 'Hoje' : `${diasRestantes}d`}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
           </div>
         </div>
       )}
+
+      {/* ── Documentos e Anexos ────────────────────────────────────────────── */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Paperclip className="w-5 h-5 text-[#D4AF37]" />
+          <h3 className="text-[#1A2B3C] font-semibold">Documentos e Anexos</h3>
+          <span className="ml-auto text-xs text-slate-400">{documentos.length} arquivo{documentos.length !== 1 ? 's' : ''}</span>
+        </div>
+
+        {/* Upload area */}
+        {podeEditar && (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              accept=".pdf,.jpg,.jpeg,.png,.docx,.doc,.xlsx,.xls"
+              onChange={handleFileChange}
+            />
+            <div
+              onClick={() => !uploading && fileInputRef.current?.click()}
+              onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer group mb-4 ${dragOver ? 'border-[#D4AF37] bg-amber-50' : 'border-gray-300 hover:border-[#D4AF37]'} ${uploading ? 'opacity-60 cursor-not-allowed' : ''}`}
+            >
+              {uploading ? (
+                <Loader2 className="w-10 h-10 text-[#D4AF37] mx-auto mb-2 animate-spin" />
+              ) : (
+                <Upload className="w-10 h-10 text-slate-400 group-hover:text-[#D4AF37] mx-auto mb-2 transition-colors" />
+              )}
+              <p className="text-slate-600 mb-1 text-sm">{uploading ? 'Enviando arquivo...' : 'Arraste arquivos aqui ou clique para selecionar'}</p>
+              <p className="text-xs text-slate-400">PDF, Word, Excel, Imagens • máx. 20 MB</p>
+            </div>
+            {uploadErro && (
+              <p className="text-xs text-red-500 mb-3">{uploadErro}</p>
+            )}
+          </>
+        )}
+
+        {/* Lista de anexos */}
+        {documentos.length === 0 ? (
+          <p className="text-sm text-slate-400 text-center py-4">Nenhum documento anexado.</p>
+        ) : (
+          <div className="space-y-2">
+            {documentos.map(doc => (
+              <div key={doc.id} className="flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:border-slate-200 transition-colors">
+                <FileText className="w-5 h-5 text-slate-400 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-[#1A2B3C] truncate">{doc.nome_original}</p>
+                  <p className="text-xs text-slate-400">
+                    {doc.tamanho ? `${(doc.tamanho / 1024).toFixed(1)} KB` : ''}
+                    {doc.criado_em ? ` · ${new Date(doc.criado_em).toLocaleDateString('pt-BR')}` : ''}
+                  </p>
+                </div>
+                <button
+                  onClick={() => baixarDocumentoProcesso(processoId, doc.id, doc.nome_original)}
+                  className="p-1.5 text-slate-400 hover:text-[#1A2B3C] transition-colors"
+                  title="Baixar"
+                >
+                  <Download className="w-4 h-4" />
+                </button>
+                {podeEditar && (
+                  <button
+                    onClick={() => handleRemoverDoc(doc)}
+                    className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
+                    title="Remover"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

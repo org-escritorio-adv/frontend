@@ -10,7 +10,8 @@ import type { ClienteAPI, ClienteCreate } from '@/pages/processos/dtos/Cliente.d
 export type {
   ProcessoAPI,
   Processo,
-  MovimentacaoAPI
+  MovimentacaoAPI,
+  PrazoAPI
 } from '@/pages/processos/dtos/ProcessoListar.dto'
 export type {
   CriarProcessoPayload,
@@ -117,6 +118,52 @@ export async function atualizarProcesso(
 
 export async function excluirProcesso(id: string): Promise<void> {
   await api.delete(`/processos/${id}`)
+}
+
+// ─── Documentos de Processo ──────────────────────────────────────────────────
+
+export interface DocumentoProcesso {
+  id: number
+  processo_id: number
+  nome_original: string
+  tamanho: number | null
+  criado_em: string | null
+}
+
+export async function listarDocumentosProcesso(processoId: string): Promise<DocumentoProcesso[]> {
+  const response = await api.get(`/processos/${processoId}/documentos`)
+  return response.data
+}
+
+export async function uploadDocumentoProcesso(
+  processoId: string,
+  arquivo_base64: string,
+  arquivo_nome: string
+): Promise<DocumentoProcesso> {
+  const response = await api.post(`/processos/${processoId}/documentos`, {
+    arquivo_base64,
+    arquivo_nome,
+  })
+  return response.data
+}
+
+export async function baixarDocumentoProcesso(processoId: string, docId: number, nomeOriginal: string): Promise<void> {
+  const response = await api.get(`/processos/${processoId}/documentos/${docId}/arquivo`, {
+    responseType: 'blob'
+  })
+  const blob = new Blob([response.data])
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.setAttribute('download', nomeOriginal)
+  document.body.appendChild(link)
+  link.click()
+  link.parentNode?.removeChild(link)
+  window.URL.revokeObjectURL(url)
+}
+
+export async function removerDocumentoProcesso(processoId: string, docId: number): Promise<void> {
+  await api.delete(`/processos/${processoId}/documentos/${docId}`)
 }
 
 export async function exportarCsvProcessos(): Promise<void> {

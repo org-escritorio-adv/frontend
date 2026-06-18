@@ -19,7 +19,7 @@ async function rodarTesteRecuperarSenha() {
 
   try {
     console.log("Iniciando o teste de recuperação de senha na Home...");
-    await driver.get('http://frontend:3000');
+    await driver.get(process.env.TEST_URL || 'http://frontend:3000');
 
     console.log("Aguardando o carregamento da Landing Page...");
     await driver.wait(until.elementLocated(By.tagName('body')), 15000);

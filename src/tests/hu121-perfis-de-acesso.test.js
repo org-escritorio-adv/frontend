@@ -2,7 +2,6 @@ import { Builder, By, until } from 'selenium-webdriver';
 import chrome from 'selenium-webdriver/chrome.js';
 import fs from 'fs';
 
-const BASE_URL = 'https://escritorio-adv-two.vercel.app/';
 
 const ADMIN_EMAIL = 'admin@escritorio.com';
 const ADMIN_SENHA = 'admin123';
@@ -19,7 +18,7 @@ const PERMISSAO_CRITICA_OFF = 'Excluir processos';
 const PERMISSAO_BASICA_ON = 'Visualizar processos';
 
 async function fazerLogin(driver, email, senha) {
-  await driver.get(BASE_URL);
+  await driver.get(process.env.TEST_URL || 'http://frontend:3000');
   await driver.wait(until.elementLocated(By.tagName('body')), 20000);
 
   console.log("Clicando em 'Area do Advogado'...");
@@ -68,7 +67,7 @@ async function fazerLogout(driver) {
   } catch (e) {
     console.log("Nao foi possivel usar o menu de logout; limpando sessao via storage.");
   }
-  await driver.get(BASE_URL);
+  await driver.get(process.env.TEST_URL || 'http://frontend:3000');
   await driver.executeScript("try{localStorage.clear();sessionStorage.clear();}catch(e){}");
   await driver.sleep(2000);
 }

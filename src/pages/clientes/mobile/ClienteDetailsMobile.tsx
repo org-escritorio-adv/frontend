@@ -15,7 +15,10 @@ import {
   CheckCircle2,
   ShieldCheck,
   ShieldAlert,
-  Loader2
+  Loader2,
+  Pencil,
+  Trash2,
+  X
 } from 'lucide-react'
 import {
   buscarClientePorId,
@@ -23,8 +26,12 @@ import {
   formatarDocumento,
   registrarAutorizacaoDeclaracao,
   uploadTermoAutorizacao,
+  atualizarCliente,
+  removerCliente,
   type ClienteCompleto
 } from '@/services/clientes.service'
+import { useAuth } from '@/context/AuthContext'
+import { canCreateClientes } from '@/lib/rbac'
 import { api } from '@/services/api'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -41,6 +48,9 @@ interface ProcessoVinculado {
 export function ClienteDetailsMobile() {
   const { clienteId } = useParams()
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const podeEditar = canCreateClientes(user)
+  const podeExcluir = user?.role === 'admin'
 
   const [cliente, setCliente] = useState<ClienteCompleto | null>(null)
   const [processos, setProcessos] = useState<ProcessoVinculado[]>([])
@@ -52,6 +62,79 @@ export function ClienteDetailsMobile() {
   const [authError, setAuthError] = useState('')
   const [authSuccess, setAuthSuccess] = useState('')
   const [declaracaoChecked, setDeclaracaoChecked] = useState(false)
+
+  // Edição
+  const [editOpen, setEditOpen] = useState(false)
+  const [editVisible, setEditVisible] = useState(false)
+  const [editForm, setEditForm] = useState({ nome_razao_social: '', email: '', telefone: '' })
+  const [editSubmitting, setEditSubmitting] = useState(false)
+  const [editError, setEditError] = useState('')
+
+  const openEdit = () => {
+    if (!cliente) return
+    setEditForm({
+      nome_razao_social: cliente.nome_razao_social,
+      email: cliente.email ?? '',
+      telefone: cliente.telefone ?? ''
+    })
+    setEditError('')
+    setEditOpen(true)
+    setTimeout(() => setEditVisible(true), 10)
+  }
+
+  const closeEdit = () => {
+    setEditVisible(false)
+    setTimeout(() => setEditOpen(false), 300)
+  }
+
+  const handleSalvarEdit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editForm.nome_razao_social.trim()) {
+      setEditError('Nome é obrigatório.')
+      return
+    }
+    setEditSubmitting(true)
+    setEditError('')
+    try {
+      const atualizado = await atualizarCliente(Number(clienteId), {
+        nome_razao_social: editForm.nome_razao_social,
+        email: editForm.email || undefined,
+        telefone: editForm.telefone || undefined
+      })
+      setCliente(atualizado)
+      closeEdit()
+    } catch (err: any) {
+      setEditError(err?.response?.data?.detail || 'Erro ao salvar alterações.')
+    } finally {
+      setEditSubmitting(false)
+    }
+  }
+
+  // Exclusão
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteVisible, setDeleteVisible] = useState(false)
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false)
+
+  const openDelete = () => {
+    setDeleteOpen(true)
+    setTimeout(() => setDeleteVisible(true), 10)
+  }
+
+  const closeDelete = () => {
+    setDeleteVisible(false)
+    setTimeout(() => setDeleteOpen(false), 300)
+  }
+
+  const handleExcluir = async () => {
+    setDeleteSubmitting(true)
+    try {
+      await removerCliente(Number(clienteId))
+      navigate(-1)
+    } catch {
+      setDeleteSubmitting(false)
+      closeDelete()
+    }
+  }
 
   useEffect(() => {
     if (!clienteId) return
@@ -156,13 +239,33 @@ export function ClienteDetailsMobile() {
     <div className="min-h-screen bg-slate-50 pb-8">
       {/* ── Topo ────────────────────────────────────────────────── */}
       <div className="bg-[#1A2B3C] px-4 pt-4 pb-8">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 text-white/70 hover:text-white text-sm mb-5 transition-colors"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          Clientes
-        </button>
+        <div className="flex items-center justify-between mb-5">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-1.5 text-white/70 hover:text-white text-sm transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Clientes
+          </button>
+          <div className="flex items-center gap-1">
+            {podeEditar && (
+              <button
+                onClick={openEdit}
+                className="w-8 h-8 flex items-center justify-center rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+            )}
+            {podeExcluir && (
+              <button
+                onClick={openDelete}
+                className="w-8 h-8 flex items-center justify-center rounded-xl text-white/70 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
 
         {/* Avatar + Nome */}
         <div className="flex items-center gap-4">
@@ -460,6 +563,144 @@ export function ClienteDetailsMobile() {
           </div>
         </div>
       </div>
+
+      {/* ── Bottom Sheet: Editar Cliente ─────────────────────── */}
+      {editOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+            onClick={closeEdit}
+          />
+          <div
+            className={`relative bg-white rounded-t-2xl shadow-2xl z-10 max-h-[90vh] flex flex-col transition-transform duration-300 ${editVisible ? 'translate-y-0' : 'translate-y-full'}`}
+          >
+            <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+              <div className="w-10 h-1 bg-slate-200 rounded-full" />
+            </div>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 flex-shrink-0">
+              <div>
+                <h3 className="text-base font-semibold text-[#1A2B3C]">Editar Cliente</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Atualize os dados do cliente</p>
+              </div>
+              <button
+                onClick={closeEdit}
+                className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1 px-5 py-4">
+              <form onSubmit={handleSalvarEdit} className="space-y-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                    Nome / Razão Social *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.nome_razao_social}
+                    onChange={e => setEditForm({ ...editForm, nome_razao_social: e.target.value })}
+                    className="h-[44px] px-3 border border-slate-200 rounded-lg text-sm text-[#1A2B3C] placeholder-slate-400 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 outline-none transition"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                    E-mail
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="contato@exemplo.com"
+                    value={editForm.email}
+                    onChange={e => setEditForm({ ...editForm, email: e.target.value })}
+                    className="h-[44px] px-3 border border-slate-200 rounded-lg text-sm text-[#1A2B3C] placeholder-slate-400 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 outline-none transition"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                    Telefone
+                  </label>
+                  <input
+                    type="tel"
+                    placeholder="(61) 99999-9999"
+                    value={editForm.telefone}
+                    onChange={e => setEditForm({ ...editForm, telefone: e.target.value })}
+                    className="h-[44px] px-3 border border-slate-200 rounded-lg text-sm text-[#1A2B3C] placeholder-slate-400 focus:border-[#D4AF37] focus:ring-2 focus:ring-[#D4AF37]/20 outline-none transition"
+                  />
+                </div>
+                {editError && (
+                  <div className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-lg p-3">
+                    {editError}
+                  </div>
+                )}
+                <div className="flex gap-3 pt-2 pb-4">
+                  <button
+                    type="button"
+                    onClick={closeEdit}
+                    disabled={editSubmitting}
+                    className="flex-1 h-[44px] text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition disabled:opacity-60"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={editSubmitting}
+                    className="flex-1 h-[44px] text-sm font-medium text-white bg-[#1A2B3C] hover:bg-[#243447] rounded-lg transition disabled:opacity-60"
+                  >
+                    {editSubmitting ? 'Salvando...' : 'Salvar'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Bottom Sheet: Confirmar Exclusão ─────────────────── */}
+      {deleteOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+            onClick={closeDelete}
+          />
+          <div
+            className={`relative bg-white rounded-t-2xl shadow-2xl z-10 flex flex-col transition-transform duration-300 ${deleteVisible ? 'translate-y-0' : 'translate-y-full'}`}
+          >
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-slate-200 rounded-full" />
+            </div>
+            <div className="px-5 py-5 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <Trash2 className="w-5 h-5 text-red-500" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-[#1A2B3C]">Excluir cliente</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Esta ação não pode ser desfeita.</p>
+                </div>
+              </div>
+              <p className="text-sm text-slate-600">
+                Tem certeza que deseja excluir <span className="font-semibold text-[#1A2B3C]">{cliente?.nome_razao_social}</span>? Todos os dados vinculados serão removidos.
+              </p>
+              <div className="flex gap-3 pb-4">
+                <button
+                  onClick={closeDelete}
+                  disabled={deleteSubmitting}
+                  className="flex-1 h-[44px] text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition disabled:opacity-60"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleExcluir}
+                  disabled={deleteSubmitting}
+                  className="flex-1 h-[44px] text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition disabled:opacity-60"
+                >
+                  {deleteSubmitting ? 'Excluindo...' : 'Excluir'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

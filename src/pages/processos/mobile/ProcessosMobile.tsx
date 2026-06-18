@@ -17,8 +17,7 @@ import {
   X,
   ChevronDown,
   Download,
-  UserSearch,
-  UserPlus
+  UserSearch
 } from 'lucide-react'
 import {
   buscarClientes,
@@ -39,8 +38,7 @@ import {
   type DataJudImportarResponse
 } from '@/services/datajud.service'
 import { useAuth } from '@/context/AuthContext'
-import { canCreateProcessos, canEditProcessos, canViewClientes, canExportDados, canCreateClientes } from '@/lib/rbac'
-import { NovoClienteModal } from '@/pages/casos/NovoClienteModal'
+import { canCreateProcessos, canEditProcessos, canViewClientes, canExportDados } from '@/lib/rbac'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -65,14 +63,12 @@ export function ProcessosMobile() {
   const podeEditar = canEditProcessos(user)
   const podeVerClientes = canViewClientes(user)
   const podeExportar = canExportDados(user)
-  const podeCriarClientes = canCreateClientes(user)
 
   const [query, setQuery] = useState('')
   const [syncing, setSyncing] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [isBuscarClienteModalOpen, setIsBuscarClienteModalOpen] = useState(false)
   const [buscarClienteTermo, setBuscarClienteTermo] = useState('')
-  const [isNovoClienteModalOpen, setIsNovoClienteModalOpen] = useState(false)
 
   const handleExportCsv = async () => {
     if (exporting) return
@@ -370,16 +366,6 @@ export function ProcessosMobile() {
           <UserSearch className="w-4 h-4" />
           Buscar Cliente
         </button>
-
-        {podeCriarClientes && (
-          <button
-            onClick={() => setIsNovoClienteModalOpen(true)}
-            className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-600 bg-white hover:bg-slate-50 transition-all"
-          >
-            <UserPlus className="w-4 h-4" />
-            Novo Cliente
-          </button>
-        )}
 
         {podeCriar && (
           <button
@@ -728,13 +714,6 @@ export function ProcessosMobile() {
                     <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
                       Cliente Vinculado
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => setIsNovoClienteModalOpen(true)}
-                      className="text-xs text-[#C5A059] font-medium hover:underline"
-                    >
-                      + Novo cliente
-                    </button>
                   </div>
                   <div className="relative">
                     <select
@@ -961,16 +940,6 @@ export function ProcessosMobile() {
           </div>
         </div>
       )}
-
-      <NovoClienteModal
-        isOpen={isNovoClienteModalOpen}
-        onClose={() => setIsNovoClienteModalOpen(false)}
-        onClienteCriado={async (c) => {
-          await fetchClientes()
-          setForm(prev => ({ ...prev, cliente_id: String(c.id) }))
-          setIsNovoClienteModalOpen(false)
-        }}
-      />
 
       {/* ─── MODAL SINCRONIZAR COM API / DATAJUD (US 2.3.3 — Bottom Sheet) ─── */}
       {syncModalOpen && (

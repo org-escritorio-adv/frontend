@@ -3,6 +3,14 @@ export interface MovimentacaoAPI {
   descricao: string
 }
 
+export interface PrazoAPI {
+  id: number
+  titulo: string
+  data_limite: string
+  status: string
+  created_at: string | null
+}
+
 export interface ProcessoAPI {
   id: number
   numero_cnj: string
@@ -13,6 +21,7 @@ export interface ProcessoAPI {
   favorito: boolean
   data_abertura?: string | null
   movimentacoes: MovimentacaoAPI[]
+  prazos: PrazoAPI[]
 }
 
 /** Modelo de visualização usado pela tela de Processos. */
