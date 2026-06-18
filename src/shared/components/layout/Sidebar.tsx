@@ -1,4 +1,4 @@
-import { LayoutDashboard, Briefcase, Building2, Settings, Columns3, Users } from 'lucide-react'
+import { LayoutDashboard, Briefcase, Building2, Settings, Columns3, Users, UserSquare2 } from 'lucide-react'
 import { AppLogo } from '@/shared/components/layout/AppLogo'
 import { useAuth } from '@/context/AuthContext'
 import { canAccessCMS } from '@/lib/rbac'
@@ -23,6 +23,7 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', short: 'Início' },
     { id: 'processos', icon: Columns3, label: 'Casos (Demandas)', short: 'Casos' },
     { id: 'cases', icon: Briefcase, label: 'Processos (DataJud)', short: 'Proc.' },
+    { id: 'clientes', icon: UserSquare2, label: 'Clientes', short: 'Clientes' },
     ...(canAccessCMS(user) ? [{ id: 'cms', icon: Building2, label: 'CMS', short: 'CMS' }] : []),
     { id: 'team', icon: Users, label: 'Equipe & Permissões', short: 'Equipe' },
     { id: 'settings', icon: Settings, label: 'Ajustes', short: 'Ajustes' }
