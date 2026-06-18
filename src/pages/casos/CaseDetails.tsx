@@ -1,21 +1,18 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Download,
-  Upload,
-  FileText,
-  Calendar,
-  MapPin,
-  Users,
-  Scale,
-  Hash,
-  ArrowLeft,
-  Loader2,
-  AlertCircle,
-  Pencil,
-  X,
-  Check
+  Download, Upload, FileText, Calendar, MapPin, Users, Scale, Hash,
+  ArrowLeft, Loader2, AlertCircle, Pencil, X, Check
 } from 'lucide-react'
+import {
+  buscarProcessoPorId,
+  exportarPdfProcesso,
+  atualizarProcesso,
+  buscarClientes
+} from '@/services/processos.service'
+import { useAuth } from '@/context/AuthContext'
+import { canEditProcessos, canExportDados } from '@/lib/rbac'
+import { ReactElement, JSXElementConstructor, ReactNode, ReactPortal, Key } from 'react'
 
 interface CaseDetailsProps {
   onBack?: () => void
