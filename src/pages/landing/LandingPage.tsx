@@ -1078,9 +1078,9 @@ function ContatoSection() {
                 },
                 {
                   Icon: Mail,
-                  label: 'E-mail geral',
-                  value: 'contato@barcelostakaki.adv.br',
-                  href: 'mailto:contato@barcelostakaki.adv.br'
+                  label: 'E-mail',
+                  value: 'adv.lucastakaki@gmail.com',
+                  href: 'mailto:adv.lucastakaki@gmail.com'
                 },
                 {
                   Icon: MapPin,

@@ -19,7 +19,7 @@ async function rodarTesteLogin() {
 
   try {
     console.log("Iniciando o teste automatizado na Home...");
-    await driver.get('http://frontend:3000');
+    await driver.get('https://escritorio-adv-two.vercel.app/');
 
     console.log("Aguardando o carregamento da Landing Page...");
     await driver.wait(until.elementLocated(By.tagName('body')), 15000);
