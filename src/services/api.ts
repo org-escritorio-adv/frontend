@@ -27,6 +27,12 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
       config.headers.Authorization = `Bearer ${token}`
     }
   }
+  // Uploads: remove o Content-Type JSON padrão para o navegador definir
+  // multipart/form-data com o boundary correto (senão o axios serializa o
+  // FormData como JSON e o backend rejeita com 422).
+  if (config.data instanceof FormData) {
+    config.headers.delete('Content-Type')
+  }
   return config
 })
 

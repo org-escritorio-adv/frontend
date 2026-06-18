@@ -21,10 +21,10 @@ import {
   Calendar,
   ArrowRight,
   FileText,
-  CheckCircle
+  CheckCircle,
+  User
 } from 'lucide-react'
-import imgLawyer1 from 'figma:asset/a7e6d94e594d35091b59bec3936bae889629478e.png'
-import imgLawyer2 from 'figma:asset/06f1466dcaf261268bcf5b48e2f367be33965c0f.png'
+import { listarAdvogados, type Advogado } from '@/services/advogados.service'
 const imgLogo = '/logo.png'
 
 // ─── Shared style helpers ────────────────────────────────────────────────────
@@ -703,32 +703,17 @@ function MissaoSection() {
 }
 
 // ─── Section: Equipe ─────────────────────────────────────────────────────────
-const teamMembers = [
-  {
-    id: 1,
-    img: imgLawyer1,
-    name: 'Dr. Gabriel Barcelos',
-    role: 'Advogado',
-    specialty: 'Administrativo e Compliance',
-    oab: 'OAB/DF 79.287',
-    email: 'gbcsilva8@gmail.com',
-    phone: '(61) 98190-0501',
-    bio: 'Advogado com formação em Direito e Engenharia (UnB), especialista em Direito Administrativo, Tributário e Compliance. Atua em consultoria estratégica e contencioso, com foco em infraestrutura, licitações e gestão de riscos regulatórios.'
-  },
-  {
-    id: 2,
-    img: imgLawyer2,
-    name: 'Dr. Lucas Takaki',
-    role: 'Advogado',
-    specialty: 'Direito Público e Digital',
-    oab: 'OAB/DF 69.901',
-    email: 'adv.lucastakaki@gmail.com',
-    phone: '(61) 98226-5931',
-    bio: 'Advogado especialista em Direito Público e Digital (LGPD/IA), com foco em contencioso estratégico e elaboração normativa. Une experiência na AGU a soluções jurídicas de alta complexidade voltadas à segurança e inovação.'
-  }
-]
-
 function EquipeSection() {
+  const [membros, setMembros] = useState<Advogado[]>([])
+  const [carregando, setCarregando] = useState(true)
+
+  useEffect(() => {
+    listarAdvogados()
+      .then(setMembros)
+      .catch(() => setMembros([]))
+      .finally(() => setCarregando(false))
+  }, [])
+
   return (
     <section id="equipe" className="bg-[#f5f5f5] py-24">
       <div className="max-w-[1216px] mx-auto px-8">
@@ -749,8 +734,17 @@ function EquipeSection() {
           ético e eficiente para cada cliente.
         </p>
 
+        {carregando ? (
+          <p className="text-center text-[#6a7282] text-[15px]" style={montserrat}>
+            Carregando equipe…
+          </p>
+        ) : membros.length === 0 ? (
+          <p className="text-center text-[#6a7282] text-[15px]" style={montserrat}>
+            Em breve, apresentaremos nossa equipe.
+          </p>
+        ) : (
         <div className="flex flex-wrap justify-center gap-10">
-          {teamMembers.map(m => (
+          {membros.map(m => (
             <div
               key={m.id}
               className="bg-white rounded-[10px] shadow-[0px_4px_6px_-1px_rgba(0,0,0,0.1),0px_2px_4px_-2px_rgba(0,0,0,0.1)] overflow-hidden w-full max-w-[384px]"
@@ -763,12 +757,16 @@ function EquipeSection() {
 
                 {/* Photo */}
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-[162px] h-[162px] rounded-full overflow-hidden ring-4 ring-[#c5a059]/30">
-                    <img
-                      src={m.img}
-                      alt={m.name}
-                      className="w-full h-full object-cover object-top scale-125"
-                    />
+                  <div className="w-[162px] h-[162px] rounded-full overflow-hidden ring-4 ring-[#c5a059]/30 flex items-center justify-center bg-[#243447]">
+                    {m.foto_url ? (
+                      <img
+                        src={m.foto_url}
+                        alt={m.nome}
+                        className="w-full h-full object-cover object-top scale-125"
+                      />
+                    ) : (
+                      <User className="w-20 h-20 text-[#c5a059]/70" strokeWidth={1.2} />
+                    )}
                   </div>
                 </div>
 
@@ -787,48 +785,59 @@ function EquipeSection() {
                   className="text-[#212e46] text-[24px] leading-[32px] mb-1"
                   style={{ ...playfair, fontWeight: 500 }}
                 >
-                  {m.name}
+                  {m.nome}
                 </h3>
                 <p className="text-[#c5a059] text-[16px] leading-[24px] mb-1" style={montserrat}>
-                  {m.role}
+                  {m.cargo}
                 </p>
-                <p className="text-[#4a5565] text-[14px] leading-[20px]" style={montserrat}>
-                  {m.specialty}
-                </p>
+                {m.especialidade && (
+                  <p className="text-[#4a5565] text-[14px] leading-[20px]" style={montserrat}>
+                    {m.especialidade}
+                  </p>
+                )}
 
                 {/* OAB divider */}
-                <div className="border-b border-[#e5e7eb] mt-3 mb-3 pb-3">
-                  <p className="text-[#6a7282] text-[12px]" style={montserrat}>
-                    {m.oab}
-                  </p>
-                </div>
+                {m.oab && (
+                  <div className="border-b border-[#e5e7eb] mt-3 mb-3 pb-3">
+                    <p className="text-[#6a7282] text-[12px]" style={montserrat}>
+                      {m.oab}
+                    </p>
+                  </div>
+                )}
 
                 {/* Bio */}
-                <p className="text-[#4a5565] text-[12px] leading-[22px] mb-4" style={montserrat}>
-                  {m.bio}
-                </p>
+                {m.bio && (
+                  <p className="text-[#4a5565] text-[12px] leading-[22px] mb-4" style={montserrat}>
+                    {m.bio}
+                  </p>
+                )}
 
                 {/* Contact */}
                 <div className="flex flex-col gap-2">
-                  <div
-                    className="flex items-center gap-2 text-[#c5a059] text-[12px]"
-                    style={montserrat}
-                  >
-                    <Mail className="w-4 h-4 flex-shrink-0" />
-                    <span>{m.email}</span>
-                  </div>
-                  <div
-                    className="flex items-center gap-2 text-[#c5a059] text-[12px]"
-                    style={montserrat}
-                  >
-                    <Phone className="w-4 h-4 flex-shrink-0" />
-                    <span>+55 {m.phone}</span>
-                  </div>
+                  {m.email && (
+                    <div
+                      className="flex items-center gap-2 text-[#c5a059] text-[12px]"
+                      style={montserrat}
+                    >
+                      <Mail className="w-4 h-4 flex-shrink-0" />
+                      <span>{m.email}</span>
+                    </div>
+                  )}
+                  {m.telefone && (
+                    <div
+                      className="flex items-center gap-2 text-[#c5a059] text-[12px]"
+                      style={montserrat}
+                    >
+                      <Phone className="w-4 h-4 flex-shrink-0" />
+                      <span>{m.telefone}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           ))}
         </div>
+        )}
       </div>
     </section>
   )

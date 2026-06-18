@@ -11,28 +11,27 @@ import {
   CheckCircle,
   Scale,
   Briefcase,
-  Hash,
   AtSign,
   ChevronDown,
   Inbox,
   Clock,
   Phone,
+  Image as ImageIcon,
+  FileText,
   ShieldAlert
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { canAccessCMS } from '@/lib/rbac'
+import {
+  listarAdvogados,
+  criarAdvogado,
+  atualizarAdvogado,
+  removerAdvogado,
+  uploadFotoAdvogado,
+  type Advogado
+} from '@/services/advogados.service'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-interface Advogado {
-  id: number
-  nome: string
-  cargo: string
-  especialidade: string
-  oab: string
-  email: string
-  bio: string
-}
 
 interface Lead {
   id: number
@@ -52,20 +51,37 @@ interface ModalAdvogadoProps {
   mode: 'add' | 'edit'
   initial: Partial<Advogado>
   onClose: () => void
-  onSave: (dados: Partial<Advogado>) => void
+  onSave: (dados: Partial<Advogado>, foto: File | null) => Promise<void>
 }
 
 function ModalAdvogado({ isOpen, mode, initial, onClose, onSave }: ModalAdvogadoProps) {
   const [form, setForm] = useState<Partial<Advogado>>(initial)
   const [salvando, setSalvando] = useState(false)
   const [sucesso, setSucesso] = useState(false)
+  const [fotoFile, setFotoFile] = useState<File | null>(null)
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null)
   const firstFieldRef = useRef<HTMLInputElement>(null)
+  const fotoInputRef = useRef<HTMLInputElement>(null)
 
   /* Sincroniza quando modal abre com novo `initial` */
   useEffect(() => {
     setForm(initial)
     setSucesso(false)
+    setFotoFile(null)
+    setFotoPreview(null)
   }, [isOpen, initial])
+
+  const handleFotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      setErro('A imagem excede 5 MB.')
+      return
+    }
+    setErro(null)
+    setFotoFile(file)
+    setFotoPreview(URL.createObjectURL(file))
+  }
 
   /* Foco no primeiro campo ao abrir */
   useEffect(() => {
@@ -81,16 +97,29 @@ function ModalAdvogado({ isOpen, mode, initial, onClose, onSave }: ModalAdvogado
     return () => document.removeEventListener('keydown', h)
   }, [isOpen, onClose])
 
-  const handleSave = () => {
+  const [erro, setErro] = useState<string | null>(null)
+
+  const handleSave = async () => {
+    if (!form.nome?.trim()) {
+      setErro('Informe o nome do advogado.')
+      return
+    }
+    setErro(null)
     setSalvando(true)
-    setTimeout(() => {
+    try {
+      await onSave(form, fotoFile)
       setSalvando(false)
       setSucesso(true)
-      setTimeout(() => {
-        onSave(form)
-        onClose()
-      }, 900)
-    }, 700)
+      setTimeout(onClose, 900)
+    } catch (e) {
+      setSalvando(false)
+      const detail = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+      setErro(
+        typeof detail === 'string'
+          ? detail
+          : 'Não foi possível salvar. Verifique sua conexão e tente novamente.'
+      )
+    }
   }
 
   const especialidades = [
@@ -153,6 +182,20 @@ function ModalAdvogado({ isOpen, mode, initial, onClose, onSave }: ModalAdvogado
             />
           </div>
 
+          {/* Cargo */}
+          <div>
+            <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+              <Briefcase className="w-3 h-3" /> Cargo
+            </label>
+            <input
+              type="text"
+              value={form.cargo ?? ''}
+              onChange={e => setForm({ ...form, cargo: e.target.value })}
+              placeholder="Ex: Sócio Sênior, Associado…"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-[#1A2B3C] placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] transition"
+            />
+          </div>
+
           {/* Especialidade */}
           <div>
             <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
@@ -202,6 +245,73 @@ function ModalAdvogado({ isOpen, mode, initial, onClose, onSave }: ModalAdvogado
               className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-[#1A2B3C] placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] transition"
             />
           </div>
+
+          {/* Telefone */}
+          <div>
+            <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+              <Phone className="w-3 h-3" /> Telefone
+            </label>
+            <input
+              type="text"
+              value={form.telefone ?? ''}
+              onChange={e => setForm({ ...form, telefone: e.target.value })}
+              placeholder="(61) 98765-4321"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-[#1A2B3C] placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] transition"
+            />
+          </div>
+
+          {/* Foto */}
+          <div>
+            <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+              <ImageIcon className="w-3 h-3" /> Foto
+            </label>
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-full overflow-hidden bg-slate-100 flex items-center justify-center flex-shrink-0 border border-gray-200">
+                {fotoPreview ?? form.foto_url ? (
+                  <img
+                    src={fotoPreview ?? form.foto_url ?? ''}
+                    alt="Pré-visualização"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User className="w-7 h-7 text-slate-300" />
+                )}
+              </div>
+              <div className="flex-1">
+                <input
+                  ref={fotoInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={handleFotoChange}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fotoInputRef.current?.click()}
+                  className="px-4 py-2 rounded-lg border border-gray-200 text-sm text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  {fotoPreview ?? form.foto_url ? 'Trocar foto' : 'Escolher foto'}
+                </button>
+                <p className="text-[11px] text-slate-400 mt-1.5">PNG, JPG ou WEBP · até 5 MB</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Bio */}
+          <div>
+            <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+              <FileText className="w-3 h-3" /> Biografia
+            </label>
+            <textarea
+              value={form.bio ?? ''}
+              onChange={e => setForm({ ...form, bio: e.target.value })}
+              rows={3}
+              placeholder="Breve descrição da atuação e experiência…"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-[#1A2B3C] placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/40 focus:border-[#D4AF37] transition resize-none"
+            />
+          </div>
+
+          {erro && <p className="text-xs text-red-500">{erro}</p>}
         </div>
 
         {/* Rodapé */}
@@ -413,36 +523,17 @@ function ModalResponderLead({ isOpen, lead, onClose }: ModalResponderLeadProps) 
 export function InstitutionalCMS() {
   const { user } = useAuth()
 
-  // ── Dados dos advogados ────────────────────────────────────────────────────
-  const [advogados, setAdvogados] = useState<Advogado[]>([
-    {
-      id: 1,
-      nome: 'Dr. João Silva',
-      cargo: 'Sócio Sênior',
-      especialidade: 'Direito Empresarial',
-      oab: 'OAB/SP 123.456',
-      email: 'joao.silva@barcelostakaki.adv.br',
-      bio: 'Mais de 20 anos de experiência em direito empresarial e operações de fusão e aquisição (M&A).'
-    },
-    {
-      id: 2,
-      nome: 'Dra. Maria Costa',
-      cargo: 'Sócia',
-      especialidade: 'Direito Tributário',
-      oab: 'OAB/SP 234.567',
-      email: 'maria.costa@barcelostakaki.adv.br',
-      bio: 'Especialista em contencioso tributário e planejamento fiscal estratégico para empresas.'
-    },
-    {
-      id: 3,
-      nome: 'Dr. Carlos Oliveira',
-      cargo: 'Associado',
-      especialidade: 'Direito Trabalhista',
-      oab: 'OAB/RJ 345.678',
-      email: 'carlos.oliveira@barcelostakaki.adv.br',
-      bio: 'Especializado em contratos de trabalho, negociações coletivas e conflitos trabalhistas.'
-    }
-  ])
+  // ── Dados dos advogados (carregados da API) ────────────────────────────────
+  const [advogados, setAdvogados] = useState<Advogado[]>([])
+  const [carregandoAdvogados, setCarregandoAdvogados] = useState(true)
+  const [erroCarregarAdvogados, setErroCarregarAdvogados] = useState(false)
+
+  useEffect(() => {
+    listarAdvogados()
+      .then(setAdvogados)
+      .catch(() => setErroCarregarAdvogados(true))
+      .finally(() => setCarregandoAdvogados(false))
+  }, [])
 
   // ── Dados dos leads ────────────────────────────────────────────────────────
   const [leads, setLeads] = useState<Lead[]>([
@@ -520,19 +611,45 @@ export function InstitutionalCMS() {
 
   const fecharAdvModal = () => setAdvModal(prev => ({ ...prev, isOpen: false }))
 
-  const salvarAdvogado = (dados: Partial<Advogado>) => {
-    if (advModal.mode === 'add') {
-      setAdvogados(prev => [
-        ...prev,
-        { id: Date.now(), cargo: 'Associado', bio: '', ...dados } as Advogado
-      ])
-    } else {
-      setAdvogados(prev => prev.map(a => (a.id === dados.id ? { ...a, ...dados } : a)))
+  const salvarAdvogado = async (dados: Partial<Advogado>, foto: File | null) => {
+    const payload = {
+      nome: dados.nome!,
+      cargo: dados.cargo?.trim() || 'Advogado',
+      especialidade: dados.especialidade ?? null,
+      oab: dados.oab ?? null,
+      email: dados.email ?? null,
+      telefone: dados.telefone ?? null,
+      foto_url: dados.foto_url ?? null,
+      bio: dados.bio ?? null
     }
-    fecharAdvModal()
+
+    let salvo =
+      advModal.mode === 'add'
+        ? await criarAdvogado(payload)
+        : await atualizarAdvogado(dados.id!, payload)
+
+    // Reflete o advogado salvo na lista (mesmo que o upload da foto falhe depois).
+    setAdvogados(prev =>
+      prev.some(a => a.id === salvo.id)
+        ? prev.map(a => (a.id === salvo.id ? salvo : a))
+        : [...prev, salvo]
+    )
+
+    if (foto) {
+      salvo = await uploadFotoAdvogado(salvo.id, foto)
+      setAdvogados(prev => prev.map(a => (a.id === salvo.id ? salvo : a)))
+    }
   }
 
-  const excluirAdvogado = (id: number) => setAdvogados(prev => prev.filter(a => a.id !== id))
+  const excluirAdvogado = async (id: number) => {
+    if (!window.confirm('Remover este advogado? Ele deixará de aparecer na landing page.')) return
+    try {
+      await removerAdvogado(id)
+      setAdvogados(prev => prev.filter(a => a.id !== id))
+    } catch {
+      window.alert('Não foi possível remover o advogado. Tente novamente.')
+    }
+  }
 
   const abrirResponder = (lead: Lead) => setLeadModal({ isOpen: true, lead })
 
@@ -604,6 +721,17 @@ export function InstitutionalCMS() {
             </button>
           </div>
 
+          {carregandoAdvogados ? (
+            <div className="py-12 text-center text-sm text-slate-400">Carregando advogados…</div>
+          ) : erroCarregarAdvogados ? (
+            <div className="py-12 text-center text-sm text-red-500">
+              Não foi possível carregar os advogados.
+            </div>
+          ) : advogados.length === 0 ? (
+            <div className="py-12 text-center text-sm text-slate-400">
+              Nenhum advogado cadastrado. Clique em “Adicionar Advogado” para começar.
+            </div>
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {advogados.map(adv => (
               <div
@@ -613,8 +741,12 @@ export function InstitutionalCMS() {
                 {/* Foto + ações */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="relative">
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#1A2B3C] to-[#2A3B4C] flex items-center justify-center shadow-md">
-                      <User className="w-8 h-8 text-white" />
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#1A2B3C] to-[#2A3B4C] flex items-center justify-center shadow-md overflow-hidden">
+                      {adv.foto_url ? (
+                        <img src={adv.foto_url} alt={adv.nome} className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="w-8 h-8 text-white" />
+                      )}
                     </div>
                     {/* OAB badge */}
                     <div className="absolute -bottom-1 -right-1 bg-[#D4AF37] rounded-full px-1.5 py-0.5">
@@ -668,6 +800,7 @@ export function InstitutionalCMS() {
               </div>
             ))}
           </div>
+          )}
         </div>
 
         {/* ════════════════════════════════════════════════════════════════════ */}
