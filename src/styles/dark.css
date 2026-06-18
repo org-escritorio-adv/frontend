@@ -1,0 +1,318 @@
+/* ============================================================================
+ * Dark mode — overrides para todo o sistema
+ * ----------------------------------------------------------------------------
+ * O app foi construído com cores "hardcoded" (bg-white, text-[#1A2B3C],
+ * text-slate-500, ...) em vez de tokens semânticos. Em vez de reescrever
+ * ~500 ocorrências espalhadas por dezenas de telas, mapeamos aqui cada classe
+ * utilitária usada para o seu equivalente no tema escuro, dentro do escopo
+ * `.dark` (ativado pelo hook `useDarkMode`).
+ *
+ * Por que funciona de forma confiável: este arquivo NÃO está dentro de uma
+ * cascade layer, enquanto os utilitários do Tailwind v4 ficam na layer
+ * `utilities`. CSS sem layer sempre vence CSS em layer — então estas regras
+ * têm prioridade sem precisar de `!important`.
+ *
+ * Princípios:
+ *  - Navy (#1A2B3C & cia) como TEXTO  -> vira claro (texto principal).
+ *  - Navy como FUNDO (botões/sidebar) -> permanece escuro (já combina).
+ *  - Dourado (#D4AF37 / #C5A059)       -> mantido (funciona sobre o escuro).
+ *  - Brancos / cinzas claros           -> superfícies escuras.
+ *  - Slates de texto                   -> tons claros.
+ * ========================================================================== */
+
+.dark {
+  /* Paleta do tema escuro (superfícies levemente azuladas, combinando c/ navy) */
+  --dk-bg: #0f1620; /* fundo mais profundo da aplicação */
+  --dk-surface: #18212e; /* cartões / superfícies "bg-white" */
+  --dk-surface-2: #222d3b; /* preenchimentos sutis / hover (slate-50/100) */
+  --dk-surface-3: #2c3848; /* preenchimentos mais fortes (slate-200/300) */
+  --dk-border: #2a3645; /* bordas / divisores */
+  --dk-text: #e6e9ee; /* texto principal (era navy / quase preto) */
+  --dk-text-2: #aab3c0; /* texto secundário (slate-500/600) */
+  --dk-text-3: #7c8696; /* texto suave / placeholders (slate-300/400) */
+
+  /* Tokens semânticos (shadcn / componentes de UI) para manter coerência */
+  --background: var(--dk-bg);
+  --foreground: var(--dk-text);
+  --card: var(--dk-surface);
+  --card-foreground: var(--dk-text);
+  --popover: var(--dk-surface);
+  --popover-foreground: var(--dk-text);
+  --muted: var(--dk-surface-2);
+  --muted-foreground: var(--dk-text-2);
+  --accent: var(--dk-surface-2);
+  --accent-foreground: var(--dk-text);
+  --secondary: var(--dk-surface-2);
+  --secondary-foreground: var(--dk-text);
+  --border: var(--dk-border);
+  --input: var(--dk-border);
+  --input-background: var(--dk-surface-2);
+  --switch-background: #3a4656;
+  --ring: #5b6b80;
+  --sidebar: #141c26;
+  --sidebar-foreground: var(--dk-text);
+  --sidebar-accent: var(--dk-surface-2);
+  --sidebar-accent-foreground: var(--dk-text);
+  --sidebar-border: var(--dk-border);
+}
+
+/* --- Garante que o fundo base acompanhe o tema ---------------------------- */
+.dark body {
+  background-color: var(--dk-bg);
+  color: var(--dk-text);
+}
+
+/* ============================================================================
+ * TEXTO PRINCIPAL  (navy / quase-preto -> claro)
+ * ========================================================================== */
+.dark .text-\[\#1A2B3C\],
+.dark .text-\[\#1a2b3c\],
+.dark .text-\[\#121212\],
+.dark .text-\[\#1b2539\],
+.dark .text-\[\#212e46\],
+.dark .text-slate-700,
+.dark .text-slate-800,
+.dark .text-slate-900,
+.dark .text-gray-700,
+.dark .text-gray-800,
+.dark .text-gray-900 {
+  color: var(--dk-text);
+}
+
+/* Variantes com opacidade do navy como texto -> um pouco mais suaves */
+.dark .text-\[\#1A2B3C\]\/70,
+.dark .text-\[\#1A2B3C\]\/60 {
+  color: var(--dk-text-2);
+}
+
+/* ============================================================================
+ * TEXTO SECUNDÁRIO  (slate-500/600 e cinzas médios -> claro suave)
+ * ========================================================================== */
+.dark .text-slate-600,
+.dark .text-slate-500,
+.dark .text-gray-600,
+.dark .text-gray-500,
+.dark .text-\[\#45556c\],
+.dark .text-\[\#4a5565\],
+.dark .text-\[\#364153\],
+.dark .text-\[\#62748e\],
+.dark .text-\[\#45556c\]\/70 {
+  color: var(--dk-text-2);
+}
+
+/* ============================================================================
+ * TEXTO SUAVE / MUTED  (slate-200/300/400 -> mais apagado)
+ * ========================================================================== */
+.dark .text-slate-400,
+.dark .text-slate-300,
+.dark .text-slate-200,
+.dark .text-gray-400,
+.dark .text-gray-300,
+.dark .text-\[\#6a7282\] {
+  color: var(--dk-text-3);
+}
+
+/* ============================================================================
+ * SUPERFÍCIES  (branco e cinzas muito claros -> cartão escuro)
+ * ========================================================================== */
+.dark .bg-white,
+.dark .bg-\[\#f5f5f5\],
+.dark .bg-\[\#F8F9FA\],
+.dark .bg-\[\#f4f5f7\],
+.dark .bg-\[\#eef0f3\] {
+  background-color: var(--dk-surface);
+}
+
+/* Preenchimentos sutis (hover, chips, ícones) */
+.dark .bg-slate-50,
+.dark .bg-slate-100,
+.dark .bg-gray-50,
+.dark .bg-gray-100,
+.dark .bg-\[\#d9d9d9\] {
+  background-color: var(--dk-surface-2);
+}
+
+/* Preenchimentos mais fortes (trilho de switch off, divisores cheios) */
+.dark .bg-slate-200,
+.dark .bg-slate-300,
+.dark .bg-slate-400,
+.dark .bg-slate-500 {
+  background-color: var(--dk-surface-3);
+}
+
+/* Hover utilitários comuns aplicados via :hover */
+.dark .hover\:bg-slate-50:hover,
+.dark .hover\:bg-slate-100:hover,
+.dark .hover\:bg-gray-100:hover {
+  background-color: var(--dk-surface-2);
+}
+.dark .active\:bg-slate-100:active {
+  background-color: var(--dk-surface-3);
+}
+
+/* Tons translúcidos de navy usados como chip de ícone sobre cartões claros.
+ * No escuro viram um leve realce claro para continuarem visíveis.            */
+.dark .bg-\[\#1A2B3C\]\/5,
+.dark .bg-\[\#1A2B3C\]\/8,
+.dark .bg-\[\#1A2B3C\]\/10,
+.dark .bg-\[\#1a2b3c\]\/5,
+.dark .bg-\[\#1a2b3c\]\/8,
+.dark .bg-\[\#1a2b3c\]\/10 {
+  background-color: rgba(255, 255, 255, 0.07);
+}
+
+/* ============================================================================
+ * BORDAS / DIVISORES  (cinzas claros -> borda escura)
+ * ========================================================================== */
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-slate-300,
+.dark .border-gray-50,
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-gray-300,
+.dark .border-\[\#e5e7eb\],
+.dark .border-\[\#d1d5dc\] {
+  border-color: var(--dk-border);
+}
+
+/* `divide-*` aplica a cor nas bordas entre filhos */
+.dark .divide-slate-50 > * + *,
+.dark .divide-slate-100 > * + *,
+.dark .divide-gray-50 > * + *,
+.dark .divide-gray-100 > * + * {
+  border-color: var(--dk-border);
+}
+
+/* ============================================================================
+ * PLACEHOLDERS / INPUTS
+ * ========================================================================== */
+.dark .placeholder-\[\#45556c\]::placeholder {
+  color: var(--dk-text-3);
+}
+.dark input,
+.dark textarea,
+.dark select {
+  color: var(--dk-text);
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: var(--dk-text-3);
+}
+
+/* ============================================================================
+ * SUPERFÍCIES CLARAS COM OPACIDADE  (variantes /60../80 -> superfície escura)
+ * ----------------------------------------------------------------------------
+ * Variantes com opacidade (ex.: rodapés `bg-slate-50/60`, barras `bg-white/70`)
+ * não casam com os seletores acima, então no escuro renderizavam como manchas
+ * claras de baixo contraste (ex.: o botão "Cancelar" sumia no rodapé).
+ * ========================================================================== */
+.dark .bg-slate-50\/60,
+.dark .bg-slate-50\/70,
+.dark .bg-slate-50\/80,
+.dark .bg-slate-100\/70,
+.dark .bg-slate-100\/80,
+.dark .bg-white\/70,
+.dark .bg-white\/80 {
+  background-color: var(--dk-surface-2);
+}
+/* Overlay claro sutil (hover translúcido sobre coluna/cartão) */
+.dark .bg-white\/50,
+.dark .hover\:bg-white\/50:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+/* ============================================================================
+ * BOTÕES "bg-white"  (não podem se fundir com a barra/cartão "bg-white")
+ * ----------------------------------------------------------------------------
+ * Tanto a barra superior quanto os botões usavam `bg-white`, virando a mesma
+ * superfície (--dk-surface) no escuro — os botões ficavam invisíveis. Damos a
+ * eles uma superfície ligeiramente mais clara e hover perceptível.
+ * ========================================================================== */
+.dark button.bg-white {
+  background-color: var(--dk-surface-2);
+}
+.dark button.bg-white.hover\:bg-slate-50:hover,
+.dark button.bg-white.hover\:bg-slate-100:hover {
+  background-color: var(--dk-surface-3);
+}
+
+/* ============================================================================
+ * CHIPS / BADGES / REALCES COLORIDOS
+ * ----------------------------------------------------------------------------
+ * Os tons claros (-50/-100) eram usados como fundo de badges/chips/cabeçalhos
+ * com texto colorido escuro (-600/-700/-800). No escuro ficavam como "ilhas"
+ * claras ofuscantes — e onde o texto era navy (convertido p/ claro), o chip
+ * ficava ilegível (caso dos cabeçalhos do Kanban: texto claro sobre azul claro).
+ *
+ * Tratamento coerente p/ o tema escuro: fundo = tinta translúcida da própria
+ * cor sobre o escuro; texto = tom claro (-300) da mesma cor; borda = tinta sutil.
+ * ========================================================================== */
+
+/* — Fundos tintados leves (-50) — */
+.dark .bg-blue-50 { background-color: rgba(59, 130, 246, 0.13); }
+.dark .bg-sky-50 { background-color: rgba(14, 165, 233, 0.13); }
+.dark .bg-indigo-50 { background-color: rgba(99, 102, 241, 0.13); }
+.dark .bg-cyan-50 { background-color: rgba(6, 182, 212, 0.13); }
+.dark .bg-teal-50 { background-color: rgba(20, 184, 166, 0.13); }
+.dark .bg-emerald-50 { background-color: rgba(16, 185, 129, 0.13); }
+.dark .bg-green-50 { background-color: rgba(34, 197, 94, 0.13); }
+.dark .bg-amber-50 { background-color: rgba(245, 158, 11, 0.13); }
+.dark .bg-yellow-50 { background-color: rgba(234, 179, 8, 0.13); }
+.dark .bg-orange-50 { background-color: rgba(249, 115, 22, 0.13); }
+.dark .bg-red-50 { background-color: rgba(239, 68, 68, 0.13); }
+.dark .bg-rose-50 { background-color: rgba(244, 63, 94, 0.13); }
+.dark .bg-pink-50 { background-color: rgba(236, 72, 153, 0.13); }
+.dark .bg-purple-50 { background-color: rgba(168, 85, 247, 0.13); }
+
+/* — Fundos tintados mais fortes (-100) — */
+.dark .bg-blue-100 { background-color: rgba(59, 130, 246, 0.2); }
+.dark .bg-sky-100 { background-color: rgba(14, 165, 233, 0.2); }
+.dark .bg-indigo-100 { background-color: rgba(99, 102, 241, 0.2); }
+.dark .bg-cyan-100 { background-color: rgba(6, 182, 212, 0.2); }
+.dark .bg-teal-100 { background-color: rgba(20, 184, 166, 0.2); }
+.dark .bg-emerald-100 { background-color: rgba(16, 185, 129, 0.2); }
+.dark .bg-green-100 { background-color: rgba(34, 197, 94, 0.2); }
+.dark .bg-amber-100 { background-color: rgba(245, 158, 11, 0.2); }
+.dark .bg-yellow-100 { background-color: rgba(234, 179, 8, 0.2); }
+.dark .bg-orange-100 { background-color: rgba(249, 115, 22, 0.2); }
+.dark .bg-red-100 { background-color: rgba(239, 68, 68, 0.2); }
+.dark .bg-rose-100 { background-color: rgba(244, 63, 94, 0.2); }
+.dark .bg-pink-100 { background-color: rgba(236, 72, 153, 0.2); }
+.dark .bg-purple-100 { background-color: rgba(168, 85, 247, 0.2); }
+
+/* — Texto colorido escuro (-600/-700/-800) -> tom claro legível (-300) — */
+.dark .text-blue-600, .dark .text-blue-700, .dark .text-blue-800 { color: #93c5fd; }
+.dark .text-sky-600, .dark .text-sky-700, .dark .text-sky-800 { color: #7dd3fc; }
+.dark .text-indigo-600, .dark .text-indigo-700, .dark .text-indigo-800 { color: #a5b4fc; }
+.dark .text-cyan-600, .dark .text-cyan-700, .dark .text-cyan-800 { color: #67e8f9; }
+.dark .text-teal-600, .dark .text-teal-700, .dark .text-teal-800 { color: #5eead4; }
+.dark .text-emerald-600, .dark .text-emerald-700, .dark .text-emerald-800 { color: #6ee7b7; }
+.dark .text-green-600, .dark .text-green-700, .dark .text-green-800 { color: #86efac; }
+.dark .text-amber-600, .dark .text-amber-700, .dark .text-amber-800 { color: #fcd34d; }
+.dark .text-yellow-600, .dark .text-yellow-700, .dark .text-yellow-800 { color: #fde047; }
+.dark .text-orange-600, .dark .text-orange-700, .dark .text-orange-800 { color: #fdba74; }
+.dark .text-red-600, .dark .text-red-700, .dark .text-red-800 { color: #fca5a5; }
+.dark .text-rose-600, .dark .text-rose-700, .dark .text-rose-800 { color: #fda4af; }
+.dark .text-pink-600, .dark .text-pink-700, .dark .text-pink-800 { color: #f9a8d4; }
+.dark .text-purple-600, .dark .text-purple-700, .dark .text-purple-800 { color: #d8b4fe; }
+
+/* — Bordas coloridas claras (-100/-200) -> tinta translúcida sutil — */
+.dark .border-blue-100, .dark .border-blue-200 { border-color: rgba(59, 130, 246, 0.3); }
+.dark .border-emerald-100, .dark .border-emerald-200 { border-color: rgba(16, 185, 129, 0.3); }
+.dark .border-green-100, .dark .border-green-200 { border-color: rgba(34, 197, 94, 0.3); }
+.dark .border-amber-100, .dark .border-amber-200 { border-color: rgba(245, 158, 11, 0.3); }
+.dark .border-red-100, .dark .border-red-200 { border-color: rgba(239, 68, 68, 0.3); }
+.dark .border-purple-100, .dark .border-purple-200 { border-color: rgba(168, 85, 247, 0.3); }
+.dark .border-orange-100, .dark .border-orange-200 { border-color: rgba(249, 115, 22, 0.3); }
+
+/* ============================================================================
+ * Notas de escopo (mantidos de propósito, NÃO sobrescrever):
+ *  - Fundos navy cheios: bg-[#1A2B3C], bg-[#243447], bg-[#1b2539],
+ *    bg-[#0F1C29] — já são superfícies escuras (botões/sidebar/headers).
+ *  - Acentos dourados: text/bg/border/-[#D4AF37] e -[#C5A059] — legíveis no escuro.
+ *  - Texto claro sobre navy: text-white, text-[#f5f5f5] — permanecem claros.
+ *  - Scrim de modais: bg-[#1A2B3C]/40, /50, /90 — permanecem escuros.
+ *  - Brancos translúcidos sobre navy: bg-white/10..35 — realces sobre fundos
+ *    escuros (headers de painel, ícones); permanecem claros de propósito.
+ * ========================================================================== */

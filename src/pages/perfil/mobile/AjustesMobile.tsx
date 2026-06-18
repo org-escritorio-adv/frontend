@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import {
   User,
-  Bell,
   Lock,
   Globe,
   Moon,
@@ -19,6 +18,7 @@ import { AppLogo } from '@/shared/components/layout/AppLogo'
 import { useNavigate } from 'react-router'
 import { useAuth } from '@/context/AuthContext'
 import { routePaths } from '@/routeConfig'
+import { useDarkMode } from '@/hooks/useDarkMode'
 
 const userProfile = {
   name: 'Dr. Carlos Silva',
@@ -55,25 +55,6 @@ const settingsSections: { title: string; items: SettingItem[] }[] = [
         action: 'navigate'
       },
       { icon: Shield, label: 'Privacidade', description: 'Controle seus dados', action: 'navigate' }
-    ]
-  },
-  {
-    title: 'Notificações',
-    items: [
-      {
-        icon: Bell,
-        label: 'Notificações Push',
-        description: 'Alertas de movimentações',
-        action: 'toggle',
-        enabled: true
-      },
-      {
-        icon: Bell,
-        label: 'E-mail',
-        description: 'Receber notificações por e-mail',
-        action: 'toggle',
-        enabled: true
-      }
     ]
   },
   {
@@ -128,19 +109,22 @@ const settingsSections: { title: string; items: SettingItem[] }[] = [
 export function AjustesMobile() {
   const navigate = useNavigate()
   const { signOut } = useAuth()
+  const [darkMode, setDarkMode] = useDarkMode()
 
   const handleLogout = async () => {
     await signOut()
     navigate(routePaths.login)
   }
 
-  const [toggles, setToggles] = useState<Record<string, boolean>>({
-    'Notificações Push': true,
-    'E-mail': true,
-    'Modo Escuro': false
-  })
+  const [toggles, setToggles] = useState<Record<string, boolean>>({})
 
-  const toggle = (label: string) => setToggles(prev => ({ ...prev, [label]: !prev[label] }))
+  const toggle = (label: string) => {
+    if (label === 'Modo Escuro') {
+      setDarkMode(!darkMode)
+      return
+    }
+    setToggles(prev => ({ ...prev, [label]: !prev[label] }))
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -196,7 +180,10 @@ export function AjustesMobile() {
               {section.items.map((item, idx) => {
                 const Icon = item.icon
                 const isLast = idx === section.items.length - 1
-                const isOn = toggles[item.label] ?? item.enabled ?? false
+                const isOn =
+                  item.label === 'Modo Escuro'
+                    ? darkMode
+                    : (toggles[item.label] ?? item.enabled ?? false)
 
                 return (
                   <div
