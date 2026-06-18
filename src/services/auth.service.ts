@@ -1,6 +1,7 @@
 import { api } from './api'
 
-const KEYCLOAK_URL = import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8080'
+const isDocker = window.location.hostname === 'frontend'
+const KEYCLOAK_URL = isDocker ? 'http://host.docker.internal:8080' : (import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8080')
 const REALM = import.meta.env.VITE_KEYCLOAK_REALM || 'escritorio-adv'
 const CLIENT_ID = import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'backend-api'
 

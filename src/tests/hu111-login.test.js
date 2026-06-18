@@ -69,8 +69,8 @@ async function rodarTesteLogin() {
     await botaoEntrar.click();
 
     await driver.sleep(3000);
-    //const logs = await driver.manage().logs().get('browser');
-    //logs.forEach(log => console.log('BROWSER LOG:', log.message));
+    const logs = await driver.manage().logs().get('browser');
+    logs.forEach(log => console.log('BROWSER LOG:', log.message));
 
     // 4 - Aguardar o tempo do redirecionamento para o dashboard
     console.log("Aguardando o redirecionamento para o Dashboard...");
@@ -96,6 +96,8 @@ async function rodarTesteLogin() {
       console.log("Gerando print do problema de redirecionamento...");
       const imageErroRedirecionamento = await driver.takeScreenshot();
       fs.writeFileSync('src/tests/evidencia-erro-redirecionamento.png', imageErroRedirecionamento, 'base64');
+      const htmlErro = await driver.getPageSource();
+      fs.writeFileSync('src/tests/evidencia-erro-redirecionamento.html', htmlErro);
     }
 
     console.log("Teste finalizado!");
