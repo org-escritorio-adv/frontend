@@ -21,7 +21,7 @@ async function rodarTesteVinculoProcesso() {
     // =========================================================================
     // 0 - LOGIN E NAVEGAÇÃO ATÉ O KANBAN
     // =========================================================================
-    await driver.get('https://escritorio-adv-two.vercel.app/');
+    await driver.get(process.env.TEST_URL || 'http://frontend:3000');
     let seletorAreaAdvogado = By.xpath("//button[contains(text(), 'Área do Advogado')] | //a[contains(text(), 'Área do Advogado')]");
     await (await driver.wait(until.elementLocated(seletorAreaAdvogado), 15000)).click();
     await driver.sleep(2000);

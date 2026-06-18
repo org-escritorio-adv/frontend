@@ -31,7 +31,7 @@ async function rodarTesteBuscaProcessos() {
     // 0 - LOGIN
     // ==========================================
     console.log("Iniciando o teste automatizado na Home...");
-    await driver.get('https://escritorio-adv-two.vercel.app/');
+    await driver.get(process.env.TEST_URL || 'http://frontend:3000');
     await driver.wait(until.elementLocated(By.tagName('body')), 15000);
 
     console.log("Buscando e clicando no botão 'Área do Advogado'...");
