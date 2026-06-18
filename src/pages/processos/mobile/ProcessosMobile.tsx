@@ -15,7 +15,10 @@ import {
   Building2,
   Clock,
   X,
-  ChevronDown
+  ChevronDown,
+  Download,
+  UserSearch,
+  UserPlus
 } from 'lucide-react'
 import {
   buscarClientes,
@@ -23,6 +26,7 @@ import {
   buscarProcessoPorId,
   criarProcesso,
   atualizarProcesso,
+  exportarCsvProcessos,
   type Processo,
   type ProcessoAPI,
   type ClienteAPI,
@@ -35,7 +39,8 @@ import {
   type DataJudImportarResponse
 } from '@/services/datajud.service'
 import { useAuth } from '@/context/AuthContext'
-import { canCreateProcessos, canEditProcessos, canViewClientes } from '@/lib/rbac'
+import { canCreateProcessos, canEditProcessos, canViewClientes, canExportDados, canCreateClientes } from '@/lib/rbac'
+import { NovoClienteModal } from '@/pages/casos/NovoClienteModal'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -59,9 +64,23 @@ export function ProcessosMobile() {
   const podeCriar = canCreateProcessos(user)
   const podeEditar = canEditProcessos(user)
   const podeVerClientes = canViewClientes(user)
+  const podeExportar = canExportDados(user)
+  const podeCriarClientes = canCreateClientes(user)
 
   const [query, setQuery] = useState('')
   const [syncing, setSyncing] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [isBuscarClienteModalOpen, setIsBuscarClienteModalOpen] = useState(false)
+  const [buscarClienteTermo, setBuscarClienteTermo] = useState('')
+  const [isNovoClienteModalOpen, setIsNovoClienteModalOpen] = useState(false)
+
+  const handleExportCsv = async () => {
+    if (exporting) return
+    setExporting(true)
+    try { await exportarCsvProcessos() }
+    catch { /* silencioso */ }
+    finally { setExporting(false) }
+  }
 
   // API State
   const [processos, setProcessos] = useState<Processo[]>([])
@@ -332,23 +351,43 @@ export function ProcessosMobile() {
       </div>
 
       {/* ── Botões de ação ────────────────────────────────────────── */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex flex-wrap gap-2 mb-4">
+        {podeExportar && (
+          <button
+            onClick={handleExportCsv}
+            disabled={exporting}
+            className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-slate-200 text-sm text-[#D4AF37] bg-white hover:bg-slate-50 transition-all disabled:opacity-60"
+          >
+            <Download className={`w-4 h-4 ${exporting ? 'animate-pulse' : ''}`} />
+            {exporting ? 'Baixando...' : 'Exportar CSV'}
+          </button>
+        )}
+
         <button
-          onClick={handleSync}
-          disabled={syncing}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-600 bg-white hover:bg-slate-50 transition-all disabled:opacity-60"
+          onClick={() => setIsBuscarClienteModalOpen(true)}
+          className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-600 bg-white hover:bg-slate-50 transition-all"
         >
-          <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin text-[#D4AF37]' : ''}`} />
-          {syncing ? 'Sincronizando…' : 'Sincronizar'}
+          <UserSearch className="w-4 h-4" />
+          Buscar Cliente
         </button>
+
+        {podeCriarClientes && (
+          <button
+            onClick={() => setIsNovoClienteModalOpen(true)}
+            className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-slate-200 text-sm text-slate-600 bg-white hover:bg-slate-50 transition-all"
+          >
+            <UserPlus className="w-4 h-4" />
+            Novo Cliente
+          </button>
+        )}
 
         {podeCriar && (
           <button
             onClick={() => setModalOpen(true)}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#1A2B3C] text-sm text-white hover:bg-[#243447] transition-colors shadow-sm"
+            className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-[#1A2B3C] text-sm text-white hover:bg-[#243447] transition-colors shadow-sm"
           >
             <Plus className="w-4 h-4" />
-            Adicionar
+            Novo Processo
           </button>
         )}
       </div>
@@ -496,14 +535,22 @@ export function ProcessosMobile() {
                       </p>
                     </div>
 
-                    <span
-                      className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${cfg.badge} ml-2`}
-                    >
+                    <div className="flex flex-col items-end gap-1 ml-2 flex-shrink-0">
+                      {isDestaque && (
+                        <span className="text-[9px] text-[#D4AF37] font-bold uppercase tracking-wide flex items-center gap-1 bg-[#D4AF37]/10 px-1.5 py-0.5 rounded">
+                          <span className="w-1 h-1 rounded-full bg-[#D4AF37] inline-block" />
+                          Mais recente
+                        </span>
+                      )}
                       <span
-                        className={`w-1 h-1 rounded-full ${cfg.dot} ${proc.status === 'Ativo' ? 'animate-pulse' : ''}`}
-                      />
-                      {cfg.label}
-                    </span>
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${cfg.badge}`}
+                      >
+                        <span
+                          className={`w-1 h-1 rounded-full ${cfg.dot} ${proc.status === 'Ativo' ? 'animate-pulse' : ''}`}
+                        />
+                        {cfg.label}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Detalhes */}
@@ -537,25 +584,10 @@ export function ProcessosMobile() {
                           <Pencil className="w-3.5 h-3.5" />
                           <span className="text-xs font-medium">Editar</span>
                         </button>
-                        <button
-                          onClick={() => handleOpenSync(proc)}
-                          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-[#1A2B3C] transition-colors border border-slate-100"
-                        >
-                          <Database className="w-3.5 h-3.5" />
-                          <span className="text-xs font-medium">Sincronizar API</span>
-                        </button>
                       </div>
                     )}
                   </div>
 
-                  {isDestaque && (
-                    <div className="absolute top-3 right-3">
-                      <span className="text-[9px] text-[#D4AF37] font-bold uppercase tracking-wide flex items-center gap-1 bg-[#D4AF37]/10 px-1.5 py-0.5 rounded">
-                        <span className="w-1 h-1 rounded-full bg-[#D4AF37] inline-block" />
-                        Mais recente
-                      </span>
-                    </div>
-                  )}
                 </div>
               )
             })
@@ -692,9 +724,18 @@ export function ProcessosMobile() {
 
                 {/* Cliente Vinculado */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                    Cliente Vinculado
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                      Cliente Vinculado
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsNovoClienteModalOpen(true)}
+                      className="text-xs text-[#C5A059] font-medium hover:underline"
+                    >
+                      + Novo cliente
+                    </button>
+                  </div>
                   <div className="relative">
                     <select
                       value={form.cliente_id}
@@ -873,6 +914,63 @@ export function ProcessosMobile() {
           </div>
         </div>
       )}
+
+      {/* ─── MODAL BUSCAR CLIENTE (Bottom Sheet) ─── */}
+      {isBuscarClienteModalOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={() => setIsBuscarClienteModalOpen(false)} />
+          <div className="relative bg-white rounded-t-2xl shadow-2xl z-10 max-h-[80vh] flex flex-col">
+            <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+              <div className="w-10 h-1 bg-slate-200 rounded-full" />
+            </div>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 flex-shrink-0">
+              <h3 className="text-base font-semibold text-[#1A2B3C] flex items-center gap-2">
+                <UserSearch className="w-4 h-4 text-[#D4AF37]" />
+                Buscar Cliente
+              </h3>
+              <button onClick={() => setIsBuscarClienteModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="px-5 pt-4 flex-shrink-0">
+              <input
+                type="text"
+                placeholder="Nome, CPF ou CNPJ..."
+                value={buscarClienteTermo}
+                onChange={e => setBuscarClienteTermo(e.target.value)}
+                className="w-full h-11 px-4 border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]"
+              />
+            </div>
+            <div className="p-5 overflow-y-auto flex flex-col gap-2">
+              {clientes.length === 0 ? (
+                <p className="text-sm text-slate-500 text-center py-6">Nenhum cliente cadastrado.</p>
+              ) : (
+                clientes
+                  .filter(c => c.nome_razao_social.toLowerCase().includes(buscarClienteTermo.toLowerCase()))
+                  .map(c => (
+                    <div
+                      key={c.id}
+                      onClick={() => setIsBuscarClienteModalOpen(false)}
+                      className="p-3 border border-slate-100 rounded-lg hover:border-[#D4AF37]/50 hover:bg-slate-50 cursor-pointer transition-colors"
+                    >
+                      <p className="text-sm font-semibold text-[#1A2B3C]">{c.nome_razao_social}</p>
+                    </div>
+                  ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <NovoClienteModal
+        isOpen={isNovoClienteModalOpen}
+        onClose={() => setIsNovoClienteModalOpen(false)}
+        onClienteCriado={async (c) => {
+          await fetchClientes()
+          setForm(prev => ({ ...prev, cliente_id: String(c.id) }))
+          setIsNovoClienteModalOpen(false)
+        }}
+      />
 
       {/* ─── MODAL SINCRONIZAR COM API / DATAJUD (US 2.3.3 — Bottom Sheet) ─── */}
       {syncModalOpen && (

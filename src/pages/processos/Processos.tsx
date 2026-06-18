@@ -771,12 +771,11 @@ export function Processos({ onViewProcess, autoEditProcessoId, onEditOpened }: P
                         onClick={e => handleOpenEdit(proc.id, e)}
                         title="Editar processo"
                         className={`
-                          flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all
-                          ${isHovered ? 'bg-slate-100 text-[#1A2B3C] hover:bg-slate-200' : 'text-slate-300 hover:text-slate-500'}
+                          flex items-center justify-center w-8 h-8 rounded-lg text-xs font-medium transition-all
+                          ${isHovered ? 'bg-slate-100 text-[#1A2B3C] hover:bg-slate-200' : 'text-transparent'}
                         `}
                       >
                         <Pencil className="w-3.5 h-3.5" />
-                        {isHovered && <span>Editar</span>}
                       </button>
                     )}
                     {podeExcluir && (
@@ -788,12 +787,11 @@ export function Processos({ onViewProcess, autoEditProcessoId, onEditOpened }: P
                         }}
                         title="Excluir processo"
                         className={`
-                          flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all
-                          ${isHovered ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'text-slate-300 hover:text-red-500'}
+                          flex items-center justify-center w-8 h-8 rounded-lg text-xs font-medium transition-all
+                          ${isHovered ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'text-transparent'}
                         `}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
-                        {isHovered && <span>Excluir</span>}
                       </button>
                     )}
                     <button
@@ -801,13 +799,13 @@ export function Processos({ onViewProcess, autoEditProcessoId, onEditOpened }: P
                         e.stopPropagation()
                         onViewProcess(proc.id)
                       }}
+                      title="Abrir processo"
                       className={`
-                        flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all
+                        flex items-center justify-center w-8 h-8 rounded-lg text-xs font-medium transition-all
                         ${isHovered ? 'bg-[#1A2B3C] text-white shadow-sm' : 'text-slate-400 hover:text-[#1A2B3C]'}
                       `}
                     >
                       <Eye className="w-3.5 h-3.5" />
-                      {isHovered ? 'Abrir' : 'Ver'}
                     </button>
                   </div>
                 </div>
@@ -830,6 +828,7 @@ export function Processos({ onViewProcess, autoEditProcessoId, onEditOpened }: P
       {/* ─── MODAL NOVO PROCESSO ─── */}
       <Dialog
         open={isModalOpen}
+        modal={!isNovoClienteModalOpen}
         onOpenChange={open => {
           if (!open && isNovoClienteModalOpen) return
           if (!open) setIsModalOpen(false)

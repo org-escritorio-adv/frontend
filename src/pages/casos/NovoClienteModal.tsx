@@ -53,6 +53,16 @@ export function NovoClienteModal({ isOpen, onClose, onClienteCriado }: NovoClien
     }
   }
 
+  // Reseta o form sempre que o modal for fechado
+  useEffect(() => {
+    if (!isOpen) {
+      setNome('')
+      setCpfCnpj('')
+      setAutorizacaoBusca(false)
+      setError('')
+    }
+  }, [isOpen])
+
   // Garante que o portal só renderize no lado cliente (se o framework for SSR)
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])

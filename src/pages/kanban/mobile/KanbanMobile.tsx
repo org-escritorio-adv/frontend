@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Paperclip,
   MessageSquare,
@@ -14,11 +14,15 @@ import {
   ChevronRight,
   Edit3,
   History,
-  Filter,
-  SlidersHorizontal
+  Download,
+  CheckCircle2,
+  Loader2
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { canEditProcessos } from '@/lib/rbac'
+import { exportarCsvProcessos, buscarProcessosRaw, type ProcessoAPI } from '@/services/processos.service'
+import { criarTarefa } from '@/services/tarefas.service'
+import { listarUsuarios, type UsuarioAPI } from '@/services/equipe.service'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -492,10 +496,123 @@ function CaseDetailBottomSheet({
 export function KanbanMobile() {
   const { user } = useAuth()
   const podeEditar = canEditProcessos(user)
+  const [exporting, setExporting] = useState(false)
 
-  const [columns] = useState<KanbanColumn[]>(initialColumns)
+  const handleExportCsv = async () => {
+    if (exporting) return
+    setExporting(true)
+    try { await exportarCsvProcessos() }
+    catch { /* silencioso */ }
+    finally { setExporting(false) }
+  }
+
+  const [columns, setColumns] = useState<KanbanColumn[]>(initialColumns)
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string>('backlog')
+
+  // ── Novo Caso ────────────────────────────────────────────────────────────────
+  const [novoOpen, setNovoOpen] = useState(false)
+  const [novoVisible, setNovoVisible] = useState(false)
+  const [novoTitulo, setNovoTitulo] = useState('')
+  const [novoPriority, setNovoPriority] = useState<Priority>('Média')
+  const [novoDueDate, setNovoDueDate] = useState('')
+  const [novoResponsavelId, setNovoResponsavelId] = useState<string>('')
+  const [novoProcessoId, setNovoProcessoId] = useState<number | null>(null)
+  const [processos, setProcessos] = useState<ProcessoAPI[]>([])
+  const [usuarios, setUsuarios] = useState<UsuarioAPI[]>([])
+  const [salvando, setSalvando] = useState(false)
+  const [salvo, setSalvo] = useState(false)
+
+  const colToStatus: Record<string, string> = {
+    backlog: 'aberta',
+    'em-execucao': 'em_andamento',
+    revisao: 'revisao',
+    finalizado: 'concluida'
+  }
+
+  const avatarColors = [
+    'bg-[#1A2B3C]', 'bg-blue-500', 'bg-emerald-500',
+    'bg-violet-500', 'bg-amber-500', 'bg-rose-500'
+  ]
+
+  const openNovo = () => {
+    setNovoTitulo('')
+    setNovoPriority('Média')
+    setNovoDueDate('')
+    setNovoResponsavelId('')
+    setNovoProcessoId(null)
+    setSalvo(false)
+    setSalvando(false)
+    setNovoOpen(true)
+    requestAnimationFrame(() => requestAnimationFrame(() => setNovoVisible(true)))
+  }
+
+  const closeNovo = () => {
+    setNovoVisible(false)
+    setTimeout(() => setNovoOpen(false), 300)
+  }
+
+  useEffect(() => {
+    if (novoOpen) {
+      document.body.style.overflow = 'hidden'
+      buscarProcessosRaw().then(setProcessos).catch(() => {})
+      listarUsuarios().then(setUsuarios).catch(() => {})
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [novoOpen])
+
+  const handleSalvarNovo = async () => {
+    if (salvando || !novoTitulo.trim()) return
+    setSalvando(true)
+    try {
+      const tarefa = await criarTarefa({
+        titulo: novoTitulo.trim(),
+        descricao: null,
+        status: colToStatus[activeTab] ?? 'aberta',
+        processo_id: novoProcessoId ?? null
+      })
+      const responsavel = usuarios.find(u => u.id === novoResponsavelId)
+      const fullName = responsavel?.nome ?? 'Não atribuído'
+      const initials = fullName.split(' ').filter(Boolean).slice(0, 2).map(n => n[0].toUpperCase()).join('')
+      const colorIdx = initials.charCodeAt(0) % avatarColors.length
+      const newCard: KanbanCard = {
+        id: String(tarefa.id),
+        title: tarefa.titulo,
+        priority: novoPriority,
+        tags: [],
+        attachments: 0,
+        comments: 0,
+        assignee: initials || '??',
+        assigneeColor: avatarColors[colorIdx],
+        assigneeFullName: fullName,
+        assigneeRole: responsavel?.perfil === 'admin' ? 'Administrador' : responsavel?.perfil === 'advogado' ? 'Advogado(a)' : 'Estagiário(a)',
+        phone: '',
+        email: '',
+        dueDate: novoDueDate
+          ? new Date(novoDueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+          : '—',
+        processNumber: novoProcessoId ? String(novoProcessoId) : 'N/A',
+        court: 'A definir',
+        vara: 'A definir',
+        description: '',
+        history: [{
+          id: 'h1', type: 'criado',
+          descricao: 'Caso cadastrado manualmente',
+          data: new Date().toLocaleDateString('pt-BR'),
+          autor: 'Usuário'
+        }]
+      }
+      setColumns(prev => prev.map(col =>
+        col.id === activeTab ? { ...col, cards: [newCard, ...col.cards] } : col
+      ))
+      setSalvo(true)
+      setTimeout(closeNovo, 900)
+    } catch {
+      alert('Erro ao criar caso. Verifique a conexão.')
+    } finally {
+      setSalvando(false)
+    }
+  }
 
   const totalCards = columns.reduce((acc, col) => acc + col.cards.length, 0)
 
@@ -520,6 +637,131 @@ export function KanbanMobile() {
         />
       )}
 
+      {/* ── Bottom Sheet: Novo Caso ─────────────────────────────────────── */}
+      {novoOpen && (
+        <>
+          <div
+            className={`fixed inset-0 z-[70] transition-all duration-300 ${novoVisible ? 'bg-black/50 backdrop-blur-[2px]' : 'bg-transparent'}`}
+            onClick={closeNovo}
+            aria-hidden="true"
+          />
+          <div
+            className={`fixed bottom-0 left-0 right-0 z-[80] bg-white rounded-t-3xl transition-transform duration-300 ease-out ${novoVisible ? 'translate-y-0' : 'translate-y-full'}`}
+            style={{ boxShadow: '0 -8px 40px rgba(26,43,60,0.22)', maxHeight: '92vh' }}
+          >
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-slate-200 rounded-full" />
+            </div>
+
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-semibold text-[#1A2B3C]">Novo Caso</h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Será adicionado em <span className="font-medium text-[#1A2B3C]">{columns.find(c => c.id === activeTab)?.title ?? activeTab}</span>
+                </p>
+              </div>
+              <button onClick={closeNovo} className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors">
+                <X className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto px-5 py-4 space-y-4" style={{ maxHeight: 'calc(92vh - 160px)' }}>
+              {/* Título */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Título <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  value={novoTitulo}
+                  onChange={e => setNovoTitulo(e.target.value)}
+                  placeholder="Título do processo..."
+                  autoFocus
+                  className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-slate-50 text-sm text-[#1A2B3C] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1A2B3C]/15 focus:border-[#1A2B3C]/40 focus:bg-white transition-all"
+                />
+              </div>
+
+              {/* Prioridade */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Prioridade</label>
+                <select
+                  value={novoPriority}
+                  onChange={e => setNovoPriority(e.target.value as Priority)}
+                  className="w-full h-12 px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-[#1A2B3C] focus:outline-none focus:ring-2 focus:ring-[#1A2B3C]/15 focus:border-[#1A2B3C]/40 appearance-none"
+                >
+                  <option value="Alta">🔴 Alta</option>
+                  <option value="Média">🟡 Média</option>
+                  <option value="Baixa">🟢 Baixa</option>
+                </select>
+              </div>
+
+              {/* Responsável */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Responsável</label>
+                <select
+                  value={novoResponsavelId}
+                  onChange={e => setNovoResponsavelId(e.target.value)}
+                  className="w-full h-12 px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-[#1A2B3C] focus:outline-none focus:ring-2 focus:ring-[#1A2B3C]/15 focus:border-[#1A2B3C]/40 appearance-none"
+                >
+                  <option value="">Não atribuído</option>
+                  {usuarios.map(u => (
+                    <option key={u.id} value={u.id}>{u.nome}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Data limite */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Data Limite</label>
+                <input
+                  type="date"
+                  value={novoDueDate}
+                  onChange={e => setNovoDueDate(e.target.value)}
+                  className="w-full h-12 px-4 rounded-xl border border-slate-200 bg-slate-50 text-sm text-[#1A2B3C] focus:outline-none focus:ring-2 focus:ring-[#1A2B3C]/15 focus:border-[#1A2B3C]/40 transition-all"
+                />
+              </div>
+
+              {/* Processo vinculado */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Processo Vinculado</label>
+                <select
+                  value={novoProcessoId ?? ''}
+                  onChange={e => setNovoProcessoId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full h-12 px-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-[#1A2B3C] focus:outline-none focus:ring-2 focus:ring-[#1A2B3C]/15 focus:border-[#1A2B3C]/40 appearance-none"
+                >
+                  <option value="">Sem processo vinculado</option>
+                  {processos.map(p => (
+                    <option key={p.id} value={p.id}>{p.numero_cnj}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="h-2" />
+            </div>
+
+            <div className="px-5 py-4 border-t border-slate-100 flex gap-3 bg-white">
+              <button
+                onClick={closeNovo}
+                disabled={salvando}
+                className="flex-1 h-12 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSalvarNovo}
+                disabled={salvando || salvo || !novoTitulo.trim()}
+                className={`flex-1 h-12 rounded-xl text-sm font-medium text-white flex items-center justify-center gap-2 transition-all disabled:opacity-70 ${salvo ? 'bg-emerald-500' : 'bg-[#1A2B3C] hover:bg-[#243447]'}`}
+              >
+                {salvo ? (
+                  <><CheckCircle2 className="w-4 h-4" /> Criado!</>
+                ) : salvando ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Salvando…</>
+                ) : (
+                  <><Plus className="w-4 h-4" /> Criar Caso</>
+                )}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
       <div className="min-h-screen bg-slate-50 px-4 py-6">
         {/* Cabeçalho */}
         <div className="mb-4">
@@ -529,16 +771,19 @@ export function KanbanMobile() {
 
         {/* Botões de ação */}
         <div className="flex gap-2 mb-4">
-          <button className="flex items-center justify-center gap-1.5 px-3 py-2 text-slate-600 text-sm border border-slate-200 rounded-lg bg-white hover:bg-slate-50 transition-colors flex-1">
-            <Filter className="w-3.5 h-3.5" />
-            Filtrar
-          </button>
-          <button className="flex items-center justify-center gap-1.5 px-3 py-2 text-slate-600 text-sm border border-slate-200 rounded-lg bg-white hover:bg-slate-50 transition-colors flex-1">
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            Ordenar
+          <button
+            onClick={handleExportCsv}
+            disabled={exporting}
+            className="flex items-center justify-center gap-1.5 px-3 py-2 text-slate-600 text-sm border border-slate-200 rounded-lg bg-white hover:bg-slate-50 transition-colors flex-1 disabled:opacity-50"
+          >
+            <Download className={`w-3.5 h-3.5 ${exporting ? 'animate-pulse' : ''}`} />
+            {exporting ? 'Baixando...' : 'Exportar CSV'}
           </button>
           {podeEditar && (
-            <button className="flex items-center justify-center gap-1.5 px-4 py-2 bg-[#1A2B3C] text-white text-sm rounded-lg hover:bg-[#243447] transition-colors font-medium">
+            <button
+              onClick={openNovo}
+              className="flex items-center justify-center gap-1.5 px-4 py-2 bg-[#1A2B3C] text-white text-sm rounded-lg hover:bg-[#243447] transition-colors font-medium"
+            >
               <Plus className="w-4 h-4" />
               Novo
             </button>
