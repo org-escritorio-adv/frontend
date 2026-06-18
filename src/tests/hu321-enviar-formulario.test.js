@@ -28,7 +28,7 @@ async function rodarTesteFormularioContato() {
     // 0 - ABRIR A PÁGINA PÚBLICA (LANDING)
     // ==========================================
     console.log("Abrindo a página pública do escritório...");
-    await driver.get('http://frontend:3000');
+    await driver.get('https://escritorio-adv-two.vercel.app/');
     await driver.wait(until.elementLocated(By.tagName('body')), 15000);
     await driver.sleep(2000);
 

@@ -23,14 +23,14 @@ async function rodarTesteCadastroCliente() {
     // =========================================================================
     // 0 - LOGIN (Mantido o padrão do seu projeto)
     // =========================================================================
-    await driver.get('http://frontend:3000');
+    await driver.get('https://escritorio-adv-two.vercel.app/');
     let seletorAreaAdvogado = By.xpath("//button[contains(text(), 'Área do Advogado')] | //a[contains(text(), 'Área do Advogado')]");
     await (await driver.wait(until.elementLocated(seletorAreaAdvogado), 15000)).click();
     await driver.sleep(2000);
 
     let campoEmail = await driver.wait(until.elementLocated(By.css('input[type="email"], input[name="email"]')), 15000);
     await campoEmail.sendKeys('admin@escritorio.com');
-    await (await driver.findElement(By.css('input[type="password"], input[name="password"]'))).sendKeys('12345678A');
+    await (await driver.findElement(By.css('input[type="password"], input[name="password"]'))).sendKeys('admin123');
     await (await driver.findElement(By.xpath("//button[contains(text(), 'ENTRAR') or contains(text(), 'Entrar')]"))).click();
     await driver.sleep(3000);
 

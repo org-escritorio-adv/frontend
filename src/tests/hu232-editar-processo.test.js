@@ -3,7 +3,7 @@ import chrome from 'selenium-webdriver/chrome.js';
 import fs from 'fs';
 
 // Processo de teste a ser editado (fictício, para não afetar processos reais).
-const NUMERO_PROCESSO = '0000000000000000000';
+const NUMERO_PROCESSO = '00000000000000000000';
 const TERMO_BUSCA = '0000000';
 
 // Novo texto de partes (com sufixo aleatório para garantir que a mudança é detectável).
@@ -50,7 +50,7 @@ async function rodarTesteEdicaoProcesso() {
     // 0 - LOGIN
     // ==========================================
     console.log("Iniciando o teste automatizado na Home...");
-    await driver.get('http://frontend:3000');
+    await driver.get('https://escritorio-adv-two.vercel.app/');
     await driver.wait(until.elementLocated(By.tagName('body')), 15000);
 
     console.log("Buscando e clicando no botão 'Área do Advogado'...");
@@ -69,7 +69,7 @@ async function rodarTesteEdicaoProcesso() {
     let seletorSenha = By.css('input[type="password"], input[name="password"]');
     let campoSenha = await driver.wait(until.elementLocated(seletorSenha), 15000);
     await campoSenha.clear();
-    await campoSenha.sendKeys('12345678A');
+    await campoSenha.sendKeys('admin123');
 
     let seletorBotaoEntrar = By.xpath("//button[contains(text(), 'ENTRAR') or contains(text(), 'Entrar')]");
     let botaoEntrar = await driver.wait(until.elementLocated(seletorBotaoEntrar), 10000);
