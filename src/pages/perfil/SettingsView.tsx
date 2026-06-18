@@ -216,13 +216,13 @@ export function SettingsView() {
           <h3 className="text-sm font-semibold text-[#1A2B3C] mb-4">Suporte Técnico</h3>
           <div className="space-y-2 text-sm text-slate-600">
             <p>
-              📞 <span className="font-medium">(61) 98765-4321</span>
+              📞 <span className="font-medium">(38) 99168-0612</span>
             </p>
             <p>
-              📧 <span className="font-medium">suporte@barcelostakaki.adv.br</span>
+              📧 <span className="font-medium">julia.takaki@gmail.com</span>
             </p>
             <p>
-              📍 <span className="font-medium">SCLN 203, Bloco B, Asa Norte — Brasília, DF</span>
+              📍 <span className="font-medium">Brasília, DF</span>
             </p>
           </div>
         </div>

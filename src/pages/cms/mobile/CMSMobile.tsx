@@ -155,17 +155,6 @@ const areaColors: Record<string, string> = {
   Empresarial: 'bg-amber-50  text-amber-700  border-amber-200'
 }
 
-const especialidades = [
-  'Direito Civil',
-  'Direito Trabalhista',
-  'Direito Empresarial',
-  'Direito Penal',
-  'Direito de Família',
-  'Direito Tributário',
-  'Direito Previdenciário',
-  'Direito Ambiental'
-]
-
 const emptyForm: FormData = { nome: '', especialidade: '', oab: '', email: '' }
 const emptyTeamForm: TeamFormData = { nome: '', email: '', telefone: '', nivel: 'Advogado' }
 
@@ -879,25 +868,18 @@ export function CMSMobile() {
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">
                   Especialidade <span className="text-red-500">*</span>
                 </label>
-                <select
+                <input
+                  type="text"
                   value={form.especialidade}
                   onChange={e => updateField('especialidade', e.target.value)}
+                  placeholder="Ex: Direito Empresarial, Direito Tributário…"
                   className={`w-full h-12 px-4 rounded-xl border bg-slate-50 text-sm text-[#1A2B3C]
-                    focus:outline-none focus:ring-2 focus:bg-white transition-all appearance-none ${
+                    focus:outline-none focus:ring-2 focus:bg-white transition-all ${
                       errors.especialidade
                         ? 'border-red-400 focus:ring-red-200'
                         : 'border-slate-200 focus:ring-[#1A2B3C]/15 focus:border-[#1A2B3C]/40'
                     }`}
-                >
-                  <option value="" disabled>
-                    Selecione uma área
-                  </option>
-                  {especialidades.map(e => (
-                    <option key={e} value={e}>
-                      {e}
-                    </option>
-                  ))}
-                </select>
+                />
                 {errors.especialidade && (
                   <p className="mt-1 text-[11px] text-red-500 flex items-center gap-1">
                     <span className="w-1 h-1 rounded-full bg-red-500 inline-block" />

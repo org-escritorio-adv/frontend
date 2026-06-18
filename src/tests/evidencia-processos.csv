@@ -1,0 +1,4 @@
+ID,Número CNJ,Tribunal,Partes,Status,Favorito
+1,12345678911111111111,TJRJ,autor x reu,ativo,True
+4,00000000000000000000,STJ,teste vs t2,ativo,False
+5,22222222222222222222,TJDFT,joao vs maria,ativo,False

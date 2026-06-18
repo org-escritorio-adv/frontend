@@ -19,7 +19,7 @@ async function rodarTesteLogin() {
 
   try {
     console.log("Iniciando o teste automatizado na Home...");
-    await driver.get('http://frontend:3000');
+    await driver.get('https://escritorio-adv-two.vercel.app/');
 
     console.log("Aguardando o carregamento da Landing Page...");
     await driver.wait(until.elementLocated(By.tagName('body')), 15000);
@@ -69,8 +69,8 @@ async function rodarTesteLogin() {
     await botaoEntrar.click();
 
     await driver.sleep(3000);
-    //const logs = await driver.manage().logs().get('browser');
-    //logs.forEach(log => console.log('BROWSER LOG:', log.message));
+    const logs = await driver.manage().logs().get('browser');
+    logs.forEach(log => console.log('BROWSER LOG:', log.message));
 
     // 4 - Aguardar o tempo do redirecionamento para o dashboard
     console.log("Aguardando o redirecionamento para o Dashboard...");
@@ -96,6 +96,8 @@ async function rodarTesteLogin() {
       console.log("Gerando print do problema de redirecionamento...");
       const imageErroRedirecionamento = await driver.takeScreenshot();
       fs.writeFileSync('src/tests/evidencia-erro-redirecionamento.png', imageErroRedirecionamento, 'base64');
+      const htmlErro = await driver.getPageSource();
+      fs.writeFileSync('src/tests/evidencia-erro-redirecionamento.html', htmlErro);
     }
 
     console.log("Teste finalizado!");

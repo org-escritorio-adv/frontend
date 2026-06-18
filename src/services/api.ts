@@ -2,12 +2,14 @@ import axios, { AxiosError, AxiosResponse } from 'axios'
 import { keycloak } from '../lib/keycloak'
 import { InternalAxiosRequestConfig } from 'axios'
 
-const KEYCLOAK_URL = import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8080'
+const isDocker = window.location.hostname === 'frontend'
+const KEYCLOAK_URL = isDocker ? 'http://host.docker.internal:8080' : (import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8080')
+console.error("DEBUG API INIT: hostname=", window.location.hostname, "isDocker=", isDocker, "KEYCLOAK_URL=", KEYCLOAK_URL)
 const REALM = import.meta.env.VITE_KEYCLOAK_REALM || 'escritorio-adv'
 const CLIENT_ID = import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'backend-api'
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: isDocker ? 'http://host.docker.internal:8000' : import.meta.env.VITE_API_URL,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -24,6 +26,12 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+  }
+  // Uploads: remove o Content-Type JSON padrão para o navegador definir
+  // multipart/form-data com o boundary correto (senão o axios serializa o
+  // FormData como JSON e o backend rejeita com 422).
+  if (config.data instanceof FormData) {
+    config.headers.delete('Content-Type')
   }
   return config
 })

@@ -34,6 +34,7 @@ import {
 } from '@/services/processos.service'
 import { useAuth } from '@/context/AuthContext'
 import { canEditProcessos, canExportDados } from '@/lib/rbac'
+import { ReactElement, JSXElementConstructor, ReactNode, ReactPortal, Key } from 'react'
 
 interface CaseDetailsProps {
   onBack?: () => void
@@ -268,7 +269,13 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
 
   const statusLabel = normalizarStatus(processo.status)
   const isAtivo = processo.status.toLowerCase() === 'ativo' || processo.status.toLowerCase() === 'ativa'
-  const movimentacoes = (processo.movimentacoes ?? []).map(m => ({ ...m, tipo: inferirTipo(m.descricao) }))
+
+  const movimentacoes = (processo.movimentacoes ?? [])
+    .map((m: { descricao: string; data: string }) => ({
+      ...m,
+      tipo: inferirTipo(m.descricao) as TipoMovimentacao
+    }))
+    .sort((a: { data: string | number | Date }, b: { data: string | number | Date }) => new Date(b.data).getTime() - new Date(a.data).getTime())
 
   const clienteNome = processo.cliente_id
     ? (clientes.find(c => c.id === processo.cliente_id)?.nome_razao_social ?? `Cliente #${processo.cliente_id}`)
@@ -453,7 +460,7 @@ export function CaseDetails({ onBack, processoId = '1' }: CaseDetailsProps) {
           <div className="relative">
             <div className="absolute left-5 top-0 bottom-0 w-px bg-gray-100" />
             <div className="space-y-6">
-              {movimentacoes.map((mov, i) => (
+              {movimentacoes.map((mov: { tipo: TipoMovimentacao; data: string; descricao: string }, i: Key | null | undefined) => (
                 <div key={i} className="flex gap-4 relative">
                   <div className="flex-shrink-0 w-10 h-10 bg-white border border-gray-100 rounded-full flex items-center justify-center shadow-sm z-10">
                     {getIconeMovimentacao(mov.tipo)}
