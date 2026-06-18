@@ -8,16 +8,21 @@ import {
   Mail,
   Scale,
   Briefcase,
-  FileText,
   Hash,
   Upload,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  CheckCircle2,
+  ShieldCheck,
+  ShieldAlert,
+  Loader2
 } from 'lucide-react'
 import {
   buscarClientePorId,
   inferirTipo,
   formatarDocumento,
+  registrarAutorizacaoDeclaracao,
+  uploadTermoAutorizacao,
   type ClienteCompleto
 } from '@/services/clientes.service'
 import { api } from '@/services/api'
@@ -41,6 +46,12 @@ export function ClienteDetailsMobile() {
   const [processos, setProcessos] = useState<ProcessoVinculado[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  // Autorização
+  const [authSubmitting, setAuthSubmitting] = useState(false)
+  const [authError, setAuthError] = useState('')
+  const [authSuccess, setAuthSuccess] = useState('')
+  const [declaracaoChecked, setDeclaracaoChecked] = useState(false)
 
   useEffect(() => {
     if (!clienteId) return
@@ -91,6 +102,46 @@ export function ClienteDetailsMobile() {
         </button>
       </div>
     )
+  }
+
+  const handleDeclaracao = async () => {
+    if (!declaracaoChecked) {
+      setAuthError('Marque a caixa de declaração para confirmar.')
+      return
+    }
+    setAuthSubmitting(true)
+    setAuthError('')
+    setAuthSuccess('')
+    try {
+      await registrarAutorizacaoDeclaracao(Number(clienteId))
+      setAuthSuccess('Autorização registrada com sucesso!')
+      const atualizado = await buscarClientePorId(Number(clienteId))
+      setCliente(atualizado)
+    } catch {
+      setAuthError('Erro ao registrar autorização. Tente novamente.')
+    } finally {
+      setAuthSubmitting(false)
+    }
+  }
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setAuthSubmitting(true)
+    setAuthError('')
+    setAuthSuccess('')
+    try {
+      await uploadTermoAutorizacao(Number(clienteId), file)
+      setAuthSuccess('Termo de autorização enviado com sucesso!')
+      const atualizado = await buscarClientePorId(Number(clienteId))
+      setCliente(atualizado)
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail
+      setAuthError(typeof detail === 'string' ? detail : 'Erro ao enviar o arquivo.')
+    } finally {
+      setAuthSubmitting(false)
+      e.target.value = ''
+    }
   }
 
   const tipo = inferirTipo(cliente.cpf_cnpj)
@@ -265,25 +316,147 @@ export function ClienteDetailsMobile() {
         </div>
 
         {/* ── Termo de Autorização ─────────────────────────────── */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100 bg-slate-50">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-4">
+          <div className="px-4 py-3 border-b border-gray-100 bg-slate-50 flex items-center justify-between">
             <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Compliance — Termo de Autorização
+              Compliance — Autorização de Busca
             </h2>
-          </div>
-          <div className="px-4 py-5">
-            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-              Faça o upload do Termo de Autorização assinado pelo cliente para permitir consultas
-              por CPF/CNPJ em conformidade com a LGPD.
-            </p>
-            <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl py-6 px-4 cursor-pointer hover:border-[#D4AF37]/50 hover:bg-[#D4AF37]/5 transition-colors">
-              <Upload className="w-6 h-6 text-slate-300" />
-              <span className="text-xs text-slate-400 text-center">
-                Toque para selecionar o arquivo
+            {cliente.autorizacao_busca ? (
+              <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                <ShieldCheck className="w-3 h-3" />
+                Autorizado
               </span>
-              <span className="text-[10px] text-slate-300">PDF, JPG ou PNG · Máx. 10 MB</span>
-              <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="sr-only" />
-            </label>
+            ) : (
+              <span className="flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">
+                <ShieldAlert className="w-3 h-3" />
+                Pendente
+              </span>
+            )}
+          </div>
+
+          <div className="px-4 py-5 space-y-4">
+            {cliente.autorizacao_busca ? (
+              /* ── Status: autorizado ── */
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-3 bg-emerald-50 border border-emerald-100 rounded-xl">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-emerald-700">
+                      Autorização registrada
+                    </p>
+                    {cliente.data_autorizacao_busca && (
+                      <p className="text-xs text-emerald-600 mt-0.5">
+                        {new Date(cliente.data_autorizacao_busca).toLocaleString('pt-BR')}
+                      </p>
+                    )}
+                    {cliente.termo_autorizacao_arquivo && (
+                      <p className="text-[11px] text-emerald-500 mt-0.5 font-mono truncate">
+                        {cliente.termo_autorizacao_arquivo}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Opção de atualizar arquivo */}
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Para atualizar o termo assinado, envie um novo arquivo abaixo:
+                </p>
+                <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl py-5 px-4 transition-colors ${authSubmitting ? 'opacity-50 cursor-not-allowed border-slate-100' : 'cursor-pointer border-slate-200 hover:border-[#D4AF37]/50 hover:bg-[#D4AF37]/5'}`}>
+                  {authSubmitting ? (
+                    <Loader2 className="w-5 h-5 text-slate-300 animate-spin" />
+                  ) : (
+                    <Upload className="w-5 h-5 text-slate-300" />
+                  )}
+                  <span className="text-xs text-slate-400 text-center">Substituir arquivo</span>
+                  <span className="text-[10px] text-slate-300">PDF, JPG ou PNG · Máx. 10 MB</span>
+                  <input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    className="sr-only"
+                    disabled={authSubmitting}
+                    onChange={handleUpload}
+                  />
+                </label>
+              </div>
+            ) : (
+              /* ── Status: pendente ── */
+              <div className="space-y-4">
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Registre a autorização do cliente para habilitar consultas por CPF/CNPJ no
+                  DataJud, conforme exigência de compliance (LGPD).
+                </p>
+
+                {/* Upload de arquivo */}
+                <div>
+                  <p className="text-xs font-semibold text-slate-600 mb-2">
+                    Opção 1 — Upload do termo assinado
+                  </p>
+                  <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl py-6 px-4 transition-colors ${authSubmitting ? 'opacity-50 cursor-not-allowed border-slate-100' : 'cursor-pointer border-slate-200 hover:border-[#D4AF37]/50 hover:bg-[#D4AF37]/5'}`}>
+                    {authSubmitting ? (
+                      <Loader2 className="w-6 h-6 text-slate-300 animate-spin" />
+                    ) : (
+                      <Upload className="w-6 h-6 text-slate-300" />
+                    )}
+                    <span className="text-xs text-slate-400 text-center">
+                      Toque para selecionar o arquivo
+                    </span>
+                    <span className="text-[10px] text-slate-300">PDF, JPG ou PNG · Máx. 10 MB</span>
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      className="sr-only"
+                      disabled={authSubmitting}
+                      onChange={handleUpload}
+                    />
+                  </label>
+                </div>
+
+                {/* Declaração de posse */}
+                <div>
+                  <p className="text-xs font-semibold text-slate-600 mb-2">
+                    Opção 2 — Declaração de posse do termo
+                  </p>
+                  <label className="flex items-start gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:border-[#D4AF37]/40 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={declaracaoChecked}
+                      onChange={e => setDeclaracaoChecked(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 accent-[#1A2B3C] flex-shrink-0"
+                    />
+                    <span className="text-xs text-slate-500 leading-relaxed">
+                      Declaro que possuo o Termo de Autorização assinado pelo cliente para
+                      consultas por CPF/CNPJ, e que ele está arquivado no escritório.
+                    </span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleDeclaracao}
+                    disabled={authSubmitting || !declaracaoChecked}
+                    className="mt-3 w-full h-[42px] text-sm font-medium text-white bg-[#1A2B3C] hover:bg-[#243447] rounded-xl transition disabled:opacity-40"
+                  >
+                    {authSubmitting ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Registrando…
+                      </span>
+                    ) : (
+                      'Confirmar declaração'
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {authError && (
+              <div className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-lg p-3">
+                {authError}
+              </div>
+            )}
+            {authSuccess && (
+              <div className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-lg p-3">
+                {authSuccess}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -9,8 +9,9 @@ import { Processos } from '@/pages/processos/Processos'
 import { SettingsView } from '@/pages/perfil/SettingsView'
 import { TeamManagement } from '@/pages/equipe/TeamManagement'
 import { ProfileView } from '@/pages/perfil/ProfileView'
+import { Clientes } from '@/pages/clientes/Clientes'
 
-type ViewId = 'dashboard' | 'processos' | 'cases' | 'cms' | 'team' | 'settings' | 'profile'
+type ViewId = 'dashboard' | 'processos' | 'cases' | 'clientes' | 'cms' | 'team' | 'settings' | 'profile'
 
 const SESSION_KEY = 'dashboardActiveView'
 
@@ -49,7 +50,14 @@ export function DashboardShell() {
   const renderView = () => {
     switch (activeView) {
       case 'dashboard':
-        return <Dashboard />
+        return (
+          <Dashboard
+            onVerProcesso={id => {
+              setSelectedProcessoId(id)
+              setActiveView('cases')
+            }}
+          />
+        )
 
       case 'processos':
         return (
@@ -77,6 +85,9 @@ export function DashboardShell() {
             onEditOpened={() => setPendingEditProcessoId(null)}
           />
         )
+
+      case 'clientes':
+        return <Clientes />
 
       case 'cms':
         return <InstitutionalCMS />
