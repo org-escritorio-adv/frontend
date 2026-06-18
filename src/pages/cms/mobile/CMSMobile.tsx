@@ -13,9 +13,10 @@ import {
   Loader2,
   Shield,
   Users,
-  Settings2,
   AlertTriangle,
-  ShieldAlert
+  ShieldAlert,
+  Send,
+  Archive
 } from 'lucide-react'
 import { Badge } from '@/shared/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/components/ui/tabs'
@@ -271,6 +272,53 @@ export function CMSMobile() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
+  // ── Estado de leads arquivados ──
+  const [arquivados, setArquivados] = useState<Set<number>>(new Set())
+  const arquivarLead = (id: number) => setArquivados(prev => new Set([...prev, id]))
+  const desarquivarLead = (id: number) => setArquivados(prev => { const s = new Set(prev); s.delete(id); return s })
+
+  // ── Estado do modal Responder Lead ──
+  type LeadItem = typeof leads[0]
+  const [leadResponder, setLeadResponder] = useState<LeadItem | null>(null)
+  const [leadSheetOpen, setLeadSheetOpen] = useState(false)
+  const [leadSheetVisible, setLeadSheetVisible] = useState(false)
+  const [emailCorpo, setEmailCorpo] = useState('')
+  const [enviando, setEnviando] = useState(false)
+  const [enviado, setEnviado] = useState(false)
+
+  const openLeadSheet = (lead: LeadItem) => {
+    setLeadResponder(lead)
+    setEmailCorpo(
+      `Prezado(a) ${lead.name},\n\nAgradecemos o seu contato com o escritório Barcelos & Takaki Advocacia.\n\nAnalisamos a sua solicitação referente a "${lead.subject}" e entramos em contato para agendar uma consulta inicial.\n\nPor favor, confirme sua disponibilidade para que possamos dar prosseguimento ao atendimento.`
+    )
+    setEnviando(false)
+    setEnviado(false)
+    setLeadSheetOpen(true)
+    requestAnimationFrame(() => requestAnimationFrame(() => setLeadSheetVisible(true)))
+  }
+
+  const closeLeadSheet = () => {
+    setLeadSheetVisible(false)
+    setTimeout(() => {
+      setLeadSheetOpen(false)
+      setLeadResponder(null)
+    }, 300)
+  }
+
+  const handleEnviarLead = () => {
+    setEnviando(true)
+    setTimeout(() => {
+      setEnviando(false)
+      setEnviado(true)
+      setTimeout(closeLeadSheet, 1200)
+    }, 800)
+  }
+
+  useEffect(() => {
+    if (leadSheetOpen) document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [leadSheetOpen])
+
   // ── Estado do Bottom Sheet (Equipe) ──
   const [teamSheetOpen, setTeamSheetOpen] = useState(false)
   const [teamSheetVisible, setTeamSheetVisible] = useState(false)
@@ -479,18 +527,12 @@ export function CMSMobile() {
       {/* ── Tabs ─────────────────────────────────────────── */}
       <div className="px-4 mt-4 pb-6">
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-          <TabsList className="w-full bg-slate-100 p-1 rounded-xl mb-4 h-11 grid grid-cols-3">
+          <TabsList className="w-full bg-slate-100 p-1 rounded-xl mb-4 h-11 grid grid-cols-2">
             <TabsTrigger
               value="advogados"
               className="rounded-lg h-9 text-xs data-[state=active]:bg-white data-[state=active]:text-[#1A2B3C] data-[state=active]:shadow-sm"
             >
               Advogados
-            </TabsTrigger>
-            <TabsTrigger
-              value="equipe"
-              className="rounded-lg h-9 text-xs data-[state=active]:bg-white data-[state=active]:text-[#1A2B3C] data-[state=active]:shadow-sm"
-            >
-              Equipe
             </TabsTrigger>
             <TabsTrigger
               value="leads"
@@ -575,124 +617,21 @@ export function CMSMobile() {
             ))}
           </TabsContent>
 
-          {/* ── Tab: Equipe ── */}
-          <TabsContent value="equipe" className="space-y-3 mt-0">
-            {/* CTA — Adicionar Membro */}
-            <button
-              onClick={openTeamSheet}
-              className="w-full h-12 bg-[#1A2B3C] hover:bg-[#243447] active:scale-[0.99] text-white rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-all"
-              style={{ boxShadow: '0 2px 10px rgba(26,43,60,0.25)' }}
-            >
-              <UserPlus className="w-4 h-4" />
-              Adicionar Membro da Equipe
-            </button>
-
-            {teamMembers.map(member => {
-              const nivelCfg = nivelConfig[member.nivel]
-              const statusCfg = statusConfig[member.status]
-              const permAtivas = Object.values(member.permissoes).filter(Boolean).length
-              const permTotal = Object.values(member.permissoes).length
-              const NivelIcon = nivelCfg.icon
-
-              return (
-                <div
-                  key={member.id}
-                  className="bg-white rounded-2xl border border-slate-100 p-4"
-                  style={{ boxShadow: '0 2px 10px rgba(26,43,60,0.07)' }}
-                >
-                  {/* Header com avatar e ações */}
-                  <div className="flex gap-3 mb-3">
-                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#1A2B3C] to-[#2A3B4C] flex items-center justify-center flex-shrink-0 shadow-sm">
-                      <span className="text-white text-sm font-bold">{member.avatar}</span>
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-semibold text-[#1A2B3C] mb-1 truncate">
-                        {member.nome}
-                      </h3>
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${nivelCfg.badge}`}
-                        >
-                          <NivelIcon className="w-2.5 h-2.5" />
-                          {member.nivel}
-                        </span>
-                      </div>
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusCfg.badge}`}
-                      >
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot} ${member.status === 'Ativo' ? 'animate-pulse' : ''}`}
-                        />
-                        {member.status}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-col gap-1.5 flex-shrink-0">
-                      <button className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center hover:bg-slate-200 transition-colors">
-                        <Settings2 className="w-3.5 h-3.5 text-slate-500" />
-                      </button>
-                      <button
-                        onClick={() => setTeamMembers(prev => prev.filter(m => m.id !== member.id))}
-                        className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center hover:bg-red-100 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Informações de contato */}
-                  <div className="space-y-1.5 mb-3 pb-3 border-b border-slate-100">
-                    <div className="flex items-center gap-2">
-                      <Mail className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                      <span className="text-xs text-slate-600 truncate">{member.email}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                      <span className="text-xs text-slate-600">{member.telefone}</span>
-                    </div>
-                  </div>
-
-                  {/* Barra de permissões */}
-                  <div className="bg-slate-50 rounded-xl p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                        Permissões
-                      </span>
-                      <span className="text-xs font-semibold text-slate-600">
-                        {permAtivas}/{permTotal}
-                      </span>
-                    </div>
-                    <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${
-                          member.nivel === 'Admin'
-                            ? 'bg-[#1A2B3C]'
-                            : member.nivel === 'Advogado'
-                              ? 'bg-blue-500'
-                              : 'bg-amber-500'
-                        }`}
-                        style={{ width: `${(permAtivas / permTotal) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </TabsContent>
-
           {/* ── Tab: Leads ── */}
           <TabsContent value="leads" className="space-y-3 mt-0">
             {leads.map(lead => {
               const s = statusMap[lead.status] ?? statusMap.novo
+              const isArquivado = arquivados.has(lead.id)
               return (
                 <div
                   key={lead.id}
-                  className="bg-white rounded-2xl border border-slate-100 p-4"
+                  className={`bg-white rounded-2xl border border-slate-100 p-4 transition-opacity duration-300 ${isArquivado ? 'opacity-50' : ''}`}
                   style={{ boxShadow: '0 2px 10px rgba(26,43,60,0.07)' }}
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <Badge className={`${s.color} text-white border-0 text-xs`}>{s.label}</Badge>
+                    <Badge className={`${isArquivado ? 'bg-slate-400' : s.color} text-white border-0 text-xs`}>
+                      {isArquivado ? 'Arquivado' : s.label}
+                    </Badge>
                     <span
                       className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${
                         areaColors[lead.area] ?? 'bg-slate-50 text-slate-600 border-slate-200'
@@ -723,22 +662,144 @@ export function CMSMobile() {
                     <p className="text-xs text-slate-600 leading-relaxed">{lead.message}</p>
                   </div>
 
-                  <div className="flex gap-2">
-                    <button className="flex-1 h-11 flex items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 active:bg-slate-100 transition-colors">
-                      <Phone className="w-4 h-4" />
-                      Ligar
+                  {isArquivado ? (
+                    <button
+                      onClick={() => desarquivarLead(lead.id)}
+                      className="w-full h-11 flex items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm text-slate-500 hover:bg-slate-50 transition-colors"
+                    >
+                      Desfazer
                     </button>
-                    <button className="flex-1 h-11 flex items-center justify-center gap-2 rounded-xl bg-[#1A2B3C] text-sm text-white hover:bg-[#243447] transition-colors">
-                      <Mail className="w-4 h-4" />
-                      E-mail
-                    </button>
-                  </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => openLeadSheet(lead)}
+                        className="flex-1 h-11 flex items-center justify-center gap-2 rounded-xl bg-[#1A2B3C] text-sm text-white hover:bg-[#243447] transition-colors"
+                      >
+                        <Send className="w-4 h-4" />
+                        Responder
+                      </button>
+                      <button
+                        onClick={() => arquivarLead(lead.id)}
+                        className="flex-1 h-11 flex items-center justify-center gap-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
+                      >
+                        <Archive className="w-4 h-4" />
+                        Arquivar
+                      </button>
+                    </div>
+                  )}
                 </div>
               )
             })}
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* ══════════════════════════════════════════════════════
+          BOTTOM SHEET — Responder Lead
+      ══════════════════════════════════════════════════════ */}
+      {leadSheetOpen && leadResponder && (
+        <>
+          <div
+            className={`fixed inset-0 z-[70] transition-all duration-300 ${leadSheetVisible ? 'bg-black/50 backdrop-blur-[2px]' : 'bg-transparent'}`}
+            onClick={closeLeadSheet}
+            aria-hidden="true"
+          />
+          <div
+            className={`fixed bottom-0 left-0 right-0 z-[80] bg-white rounded-t-3xl transition-transform duration-300 ease-out ${leadSheetVisible ? 'translate-y-0' : 'translate-y-full'}`}
+            style={{ boxShadow: '0 -8px 40px rgba(26,43,60,0.22)', maxHeight: '92vh' }}
+          >
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-slate-200 rounded-full" />
+            </div>
+
+            {/* Cabeçalho */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-[#1A2B3C]/10 flex items-center justify-center">
+                  <Send className="w-4 h-4 text-[#1A2B3C]" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-[#1A2B3C]">Responder Lead</h3>
+                  <p className="text-[11px] text-slate-400">Composição de e-mail para o cliente</p>
+                </div>
+              </div>
+              <button
+                onClick={closeLeadSheet}
+                className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors"
+              >
+                <X className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
+
+            {/* Para / Assunto */}
+            <div className="border-b border-slate-100">
+              <div className="flex items-center gap-3 px-5 py-3 border-b border-slate-100">
+                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider w-14 flex-shrink-0">Para</span>
+                <div className="flex-1 flex items-center gap-2 flex-wrap">
+                  <span className="px-2.5 py-1 bg-slate-100 rounded-full text-xs font-medium text-[#1A2B3C]">{leadResponder.name}</span>
+                  <span className="text-xs text-slate-400 truncate">{leadResponder.email}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 px-5 py-3">
+                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider w-14 flex-shrink-0">Assunto</span>
+                <input
+                  type="text"
+                  defaultValue={`Re: ${leadResponder.subject}`}
+                  className="flex-1 text-sm text-[#1A2B3C] focus:outline-none bg-transparent min-w-0"
+                />
+              </div>
+            </div>
+
+            {/* Corpo + info original */}
+            <div className="overflow-y-auto px-5 py-4 space-y-4" style={{ maxHeight: 'calc(92vh - 280px)' }}>
+              <textarea
+                value={emailCorpo}
+                onChange={e => setEmailCorpo(e.target.value)}
+                rows={7}
+                className="w-full text-sm text-slate-700 leading-relaxed resize-none focus:outline-none placeholder-slate-300"
+                placeholder="Digite sua mensagem…"
+              />
+
+              {/* Mensagem original do lead */}
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Mensagem Original do Lead</p>
+                <p className="text-xs text-slate-500 italic">"{leadResponder.message}"</p>
+                <div className="flex items-center gap-3 mt-2">
+                  <span className="flex items-center gap-1 text-[10px] text-slate-400">
+                    <Phone className="w-3 h-3" />{leadResponder.phone}
+                  </span>
+                  <span className="flex items-center gap-1 text-[10px] text-slate-400">
+                    <Calendar className="w-3 h-3" />{leadResponder.date}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Rodapé */}
+            <div className="px-5 py-4 border-t border-slate-100 flex gap-3 bg-white">
+              <button
+                onClick={closeLeadSheet}
+                className="flex-1 h-12 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleEnviarLead}
+                disabled={enviando || enviado}
+                className={`flex-1 h-12 rounded-xl text-sm font-medium text-white flex items-center justify-center gap-2 transition-all disabled:opacity-80 ${enviado ? 'bg-emerald-500' : 'bg-[#1A2B3C] hover:bg-[#243447]'}`}
+              >
+                {enviado ? (
+                  <><CheckCircle2 className="w-4 h-4" /> Enviado!</>
+                ) : enviando ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Enviando…</>
+                ) : (
+                  <><Send className="w-4 h-4" /> Enviar E-mail</>
+                )}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ══════════════════════════════════════════════════════
           BOTTOM SHEET — Adicionar Advogado

@@ -29,6 +29,11 @@ export async function excluirUsuario(id: string): Promise<void> {
   await api.delete(`/usuarios/${id}`)
 }
 
+export async function atualizarNivelUsuario(id: string, perfil: string): Promise<UsuarioAPI> {
+  const response = await api.patch<UsuarioAPI>(`/usuarios/${id}`, { perfil })
+  return response.data
+}
+
 export async function atualizarPermissoes(
   id: string,
   permissoes: Record<string, boolean>

@@ -23,6 +23,7 @@ import { Link, useLocation, useNavigate } from 'react-router'
 import { AppLogo } from '@/shared/components/layout/AppLogo'
 import { routePaths } from '@/routeConfig'
 import { useAuth } from '@/context/AuthContext'
+import { PrazosCalculadoraModal } from '@/pages/processos/PrazosCalculadoraModal'
 
 // ── Dados mock ──────────────────────────────────────────────────────────────
 
@@ -90,6 +91,9 @@ export function MobileTopBar() {
   const [notifOpen, setNotifOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
 
+  // Calculadora de prazos
+  const [calculadoraOpen, setCalculadoraOpen] = useState(false)
+
   // Notificações com estado local de leitura
   const [notifications, setNotifications] = useState<Notification[]>(INITIAL_NOTIFICATIONS)
 
@@ -153,8 +157,17 @@ export function MobileTopBar() {
           <AppLogo variant="light" size="sm" />
         </div>
 
-        {/* Bell + Avatar */}
+        {/* Bell + Scale + Avatar */}
         <div className="ml-auto flex items-center gap-1">
+          {/* ── Calculadora de Prazos ── */}
+          <button
+            onClick={() => { setCalculadoraOpen(true); closeAll() }}
+            className="w-10 h-10 flex items-center justify-center rounded-xl text-white/80 hover:bg-white/10 active:bg-white/20 transition-colors"
+            aria-label="Calculadora de Prazos"
+          >
+            <Scale className="w-5 h-5" />
+          </button>
+
           {/* ── Sino de Notificações ── */}
           <button
             onClick={() => {
@@ -415,7 +428,7 @@ export function MobileTopBar() {
           </p>
 
           <button
-            onClick={() => setDrawerOpen(false)}
+            onClick={() => { setDrawerOpen(false); setCalculadoraOpen(true) }}
             className="w-full flex items-center gap-3 px-3 py-3.5 rounded-xl mb-0.5 text-slate-700 hover:bg-slate-100 transition-colors"
           >
             <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
@@ -441,6 +454,12 @@ export function MobileTopBar() {
           </button>
         </div>
       </aside>
+
+      {/* ── 7. Calculadora de Prazos ──────────────────────── */}
+      <PrazosCalculadoraModal
+        isOpen={calculadoraOpen}
+        onClose={() => setCalculadoraOpen(false)}
+      />
     </>
   )
 }

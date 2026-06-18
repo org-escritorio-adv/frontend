@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Search, Star, Clock, Plus, Filter, SlidersHorizontal } from 'lucide-react'
+import { Search, Star, Clock, Plus, Download } from 'lucide-react'
 import { Badge } from '@/shared/components/ui/badge'
 import { useNavigate } from 'react-router'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/components/ui/tabs'
+import { exportarCsvProcessos } from '@/services/processos.service'
 
 type CaseItem = {
   id: string
@@ -24,6 +25,15 @@ const typeColors: Record<string, string> = {
 export function MeusCasos() {
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
+  const [exporting, setExporting] = useState(false)
+
+  const handleExportCsv = async () => {
+    if (exporting) return
+    setExporting(true)
+    try { await exportarCsvProcessos() }
+    catch { /* silencioso */ }
+    finally { setExporting(false) }
+  }
 
   const cases = {
     ativos: [
@@ -136,19 +146,28 @@ export function MeusCasos() {
         className="bg-white border-b border-slate-100 px-4 py-3"
         style={{ boxShadow: '0 1px 6px rgba(26,43,60,0.05)' }}
       >
-        {/* Search input — full width, touch-friendly 48px */}
-        <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 pointer-events-none w-[18px] h-[18px]" />
-          <input
-            type="text"
-            placeholder="Buscar por cliente ou número..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full h-12 pl-10 pr-12 bg-slate-50 border border-slate-200 rounded-xl text-sm text-[#1A2B3C] placeholder-slate-400
-              focus:outline-none focus:ring-2 focus:ring-[#1A2B3C]/20 focus:border-[#1A2B3C]/40 transition-all"
-          />
-          <button className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-200 transition-colors">
-            <SlidersHorizontal className="w-4 h-4 text-slate-400" />
+        <div className="flex items-center gap-2">
+          {/* Search input */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar por cliente ou número..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full h-12 pl-10 pr-4 bg-slate-50 border border-slate-200 rounded-xl text-sm text-[#1A2B3C] placeholder-slate-400
+                focus:outline-none focus:ring-2 focus:ring-[#1A2B3C]/20 focus:border-[#1A2B3C]/40 transition-all"
+            />
+          </div>
+
+          {/* Exportar CSV */}
+          <button
+            onClick={handleExportCsv}
+            disabled={exporting}
+            className="flex-shrink-0 h-12 px-3 flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-50 active:bg-slate-100 transition-colors disabled:opacity-50"
+          >
+            <Download className={`w-4 h-4 ${exporting ? 'animate-pulse' : ''}`} />
+            <span>{exporting ? 'Baixando...' : 'Exportar CSV'}</span>
           </button>
         </div>
       </div>
